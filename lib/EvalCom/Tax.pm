@@ -192,7 +192,7 @@ sub new {
     } else {
         # Here we are pre-loaded. Verify that we have all the roles we need.
         my $notFound;
-        for my $role (keys %nameMap) {
+        for my $role (keys %$nameMap) {
             if (! $nameMap->{$role}) {
                 $notFound++;
             }
