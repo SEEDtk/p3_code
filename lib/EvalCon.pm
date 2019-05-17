@@ -168,7 +168,7 @@ sub new {
     my $retVal = { logH => $logH, stats => $stats };
     bless $retVal, $class;
     # Analyze the options, starting with the predictors.
-    my ($predictors, $rolesToUse, $roleFile) =  map { "$FIG_Config::global/$_"} qw(FunctionPredictors roles.to.use roles.in.subsystems);
+    my ($predictors, $rolesToUse, $roleFile) =  map { "$FIG_Config::p3data/$_"} qw(FunctionPredictors roles.to.use roles.in.subsystems);
     if ($options{predictors}) {
         $predictors = $options{predictors};
     }

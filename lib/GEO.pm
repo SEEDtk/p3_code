@@ -2420,7 +2420,7 @@ sub _RoleMaps {
     } else {
         # No. Read from the roles.in.subsystems file.
         $nMap = {}; $cMap = {};
-        my $roleFile = "$FIG_Config::global/roles.in.subsystems";
+        my $roleFile = "$FIG_Config::p3data/roles.in.subsystems";
         _log($logH, "Reading roles from $roleFile.\n");
         open(my $rh, '<', $roleFile) || die "Could not open roles.in.subsytems: $!";
         while (! eof $rh) {

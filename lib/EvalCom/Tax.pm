@@ -119,7 +119,7 @@ A L<Stats> object for tracking statistics. If none is specified, one will be cre
 sub new {
     my ($class, $checkDir, %options) = @_;
     # Process the options.
-    my $roleFile = $options{rolesInSubsystems} // "$FIG_Config::global/roles.in.subsystems";
+    my $roleFile = $options{rolesInSubsystems} // "$FIG_Config::p3data/roles.in.subsystems";
     # We will track the roles of interest in here. When we read roles.in.subsystems we will fill in the role names.
     my %nameMap;
     # This will map role checksums to role IDs.

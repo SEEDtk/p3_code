@@ -125,7 +125,7 @@ sub ProcessGto {
     # Get access to the statistics object.
     my $stats = $evalCon->stats;
     # Create the completeness helper.
-    my $checkDir = $options{checkDir} // "$FIG_Config::global/CheckG";
+    my $checkDir = $options{checkDir} // "$FIG_Config::p3data/CheckG";
     my ($nMap, $cMap) = $evalCon->roleHashes;
     my %evalOptions = (stats => $stats);
     my $evalG;
@@ -286,7 +286,7 @@ sub Process {
     # Get access to the statistics object.
     my $stats = $evalCon->stats;
     # Create the completeness helper.
-    my $checkDir = $options{checkDir} // "$FIG_Config::global/CheckG";
+    my $checkDir = $options{checkDir} // "$FIG_Config::p3data/CheckG";
     my ($nMap, $cMap) = $evalCon->roleHashes;
     my $evalG = EvalCom::Tax->new($checkDir, roleHashes=> [$nMap, $cMap], stats => $stats);
     # Compute the detail level.

@@ -104,7 +104,7 @@ sub new {
     # Get the tuning options.
     my $min = $options{minComplete} // 90;
     # Get the role hashes.
-    my ($nMap, $cMap) = EvalCon::LoadRoleHashes("$FIG_Config::global/roles.in.subsystems", $stats);
+    my ($nMap, $cMap) = EvalCon::LoadRoleHashes("$FIG_Config::p3data/roles.in.subsystems", $stats);
     # Create the object.
     my $retVal = { workDir => $workDir, roleHashes => [$nMap, $cMap], stats => $stats, p3 => $p3, minComplete => $min };
     # Bless and return it.
