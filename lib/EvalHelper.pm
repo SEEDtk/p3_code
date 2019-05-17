@@ -84,7 +84,7 @@ A L<P3DataAPI> object for accessing the PATRIC database. If omitted, one will be
 
 =item template
 
-The name of the template file. The default is C<RASTtk/lib/BinningReports/webdetails.tt> in the SEEDtk module directory.
+The name of the template file. The default is C<p3_code/lib/BinningReports/webdetails.tt> in the SEEDtk module directory.
 
 =item outFile
 
@@ -192,7 +192,7 @@ sub ProcessGto {
     }
     # If there is an output web page file, we create the detail page.
     if ($options{outHtml}) {
-        my $detailFile = $options{template} // "$FIG_Config::mod_base/RASTtk/lib/BinningReports/webdetails.tt";
+        my $detailFile = $options{template} // "$FIG_Config::mod_base/p3_code/lib/BinningReports/webdetails.tt";
         my $retVal = BinningReports::Detail(undef, undef, $detailFile, $geo, $nMap);
         open(my $oh, '>', $options{outHtml}) || die "Could not open HTML output file: $!";
         print $oh $retVal;
@@ -245,7 +245,7 @@ A L<P3DataAPI> object for accessing the PATRIC database. If omitted, one will be
 
 =item template
 
-The name of the template file. The default is C<RASTtk/lib/BinningReports/webdetails.tt> in the SEEDtk module directory.
+The name of the template file. The default is C<p3_code/lib/BinningReports/webdetails.tt> in the SEEDtk module directory.
 
 =item outFile
 
@@ -379,7 +379,7 @@ sub Process {
     }
     # If there is an output web page file, we create the detail page.
     if ($options{outHtml}) {
-        my $detailFile = $options{template} // "$FIG_Config::mod_base/RASTtk/lib/BinningReports/webdetails.tt";
+        my $detailFile = $options{template} // "$FIG_Config::mod_base/p3_code/lib/BinningReports/webdetails.tt";
         my $retVal = BinningReports::Detail(undef, undef, $detailFile, $retVal, $nMap);
         open(my $oh, '>', $options{outHtml}) || die "Could not open HTML output file: $!";
         print $oh $retVal;

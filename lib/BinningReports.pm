@@ -836,7 +836,7 @@ This is a list of the command-line option specifiers used for the binning report
 
 =item templates
 
-Name of the directory containing the web page templates and style file. The default is C<RASTtk/lib/BinningReports> in the
+Name of the directory containing the web page templates and style file. The default is C<p3_code/lib/BinningReports> in the
 SEEDtk code directory.
 
 =back
@@ -846,7 +846,7 @@ SEEDtk code directory.
 sub template_options {
     return
         (['templates=s', 'name of the directory containing the binning templates',
-                { default => "$FIG_Config::mod_base/RASTtk/lib/BinningReports" }]);
+                { default => "$FIG_Config::mod_base/p3_code/lib/BinningReports" }]);
 }
 
 =head3 build_strings
