@@ -3,7 +3,6 @@
 	<name>p3_code</name>
 	<comment></comment>
 	<projects>
-		<project>SEEDtk</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
