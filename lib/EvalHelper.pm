@@ -94,6 +94,11 @@ The name of an optional output file. If specified, will contain the evaluation t
 
 The name of an optional web page file. If specified, will contain the HTML output.
 
+=item improve
+
+The name of an optional FASTA file.  If specified, it will contain the contigs for a proposed improved version of the
+genome.
+
 =item external
 
 If TRUE, the incoming genome is presumed to be external, and no contig links will be generated on the web page.
@@ -172,7 +177,7 @@ sub ProcessGto {
     my $qFile = "$workDir/$genomeID.out";
     open(my $oh, '>', $qFile) || die "Could not open work file: $!";
     # Output the completeness data.
-    $evalG->Check2($geo, $oh);
+    my ($complete, $contam, $group, $seedFlag) = $evalG->Check2($geo, $oh);
     close $oh;
     # Create the eval matrix for the consistency checker.
     $evalCon->OpenMatrix($workDir);
@@ -186,6 +191,24 @@ sub ProcessGto {
     }
     # Store the quality metrics in the GEO.
     $geo->AddQuality($qFile);
+    # If there is an improvement file, create the improved FASTA.
+    my $improveFile = $options{improve};
+    if ($improveFile && $complete >= 90 && ! GEO::contamX($contam)) {
+        # Find the bad contigs.
+        my $badHash = $geo->FindBadContigs();
+        my $badFound = scalar keys %$badHash;
+        if ($badFound) {
+            # Write the good contigs.
+            open(my $oh, '>', $improveFile) || die "Could not open FASTA file $improveFile: $!";
+            my $contigs = $gto->{contigs};
+            for my $contig (@$contigs) {
+                my ($contigID) = $contig->{id};
+                if (! $badHash->{$contigID}) {
+                    print $oh ">$contigID\n$contig->{dna}\n";
+                }
+            }
+        }
+    }
     # If there is an output file, copy into it.
     if ($options{outFile}) {
         File::Copy::Recursive::fcopy($qFile, $options{outFile}) || die "Could not copy output file: $!";

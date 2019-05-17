@@ -47,7 +47,12 @@ the sequences in PATRIC.
 
 =item parallel
 
-The number of parallel processed to run when applying the function predictors. The default is C<8>.
+The number of parallel processes to run when applying the function predictors. The default is C<8>.
+
+=item improve
+
+If specified, the name of a FASTA file.  A reduced set of contigs representing an improved genome will be written to
+this file, if an improvement is possible.
 
 =back
 
@@ -68,6 +73,7 @@ my $opt = P3Utils::script_opts('gtoFile outFile outHtml',
         ['template=s', 'template for web pages', { default => "$FIG_Config::mod_base/p3_code/lib/BinningReports/webdetails.tt" }],
         ['external', 'the genome is not currently installed in PATRIC'],
         ['binned', 'the genome contig IDs are user-suppled, not PATRIC-generated'],
+        ['improve=s', 'name of a FASTA file to contain an improved version of the GTO contigs'],
         ['parallel=i', 'parallelism to use in matrix evaluation', { default => 8 }],
         );
 # Get access to PATRIC.
@@ -89,7 +95,8 @@ if (! $gto) {
 # Call the main processor.
 my $geo = EvalHelper::ProcessGto($gto, 'ref' => $opt->ref, deep => $opt->deep, checkDir => $opt->checkdir, predictors => $opt->predictors,
     parallel => $opt->parallel,
-    p3 => $p3, outFile => $outFile, outHtml => $outHtml, template => $opt->template, external => $opt->external, binned => $opt->binned);
+    p3 => $p3, outFile => $outFile, outHtml => $outHtml, template => $opt->template, external => $opt->external, binned => $opt->binned,
+    improve => $opt->improve);
 # Write the results.
 $gto->destroy_to_file($gtoFile);
 

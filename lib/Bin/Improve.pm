@@ -70,7 +70,8 @@ Create a new bin improvement object.
 
 =item workDir
 
-The name of the working directory containing the binning files.
+The name of the working directory containing the binning files, or C<undef> if no binning files are present.
+In this case, reference genomes are pulling from the PATRIC store.
 
 =item options
 
@@ -202,7 +203,7 @@ sub Process {
     my @refGenomes = $bin->refGenomes;
     for my $refGenome (@refGenomes) {
         my $refGeo;
-        if (-s "$workDir/$refGenome.json") {
+        if ($workDir && -s "$workDir/$refGenome.json") {
             $refGeo = GEO->CreateFromGto("$workDir/$refGenome.json", %gOptions);
         } else {
             my $gHash = GEO->CreateFromPatric($refGenome, %gOptions);
