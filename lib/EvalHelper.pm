@@ -128,8 +128,9 @@ sub ProcessGto {
     my $p3 = $options{p3} // P3DataAPI->new();
     # Create the work directory.
     my $workDir = $options{workDir};
+    my $tmpObject;
     if (! $workDir) {
-        my $tmpObject = File::Temp->newdir();
+        $tmpObject = File::Temp->newdir();
         $workDir = $tmpObject->dirname;
     } elsif (! -d $workDir) {
         File::Copy::Recursive::pathmk($workDir) || die "Could not create work directory: $!";
@@ -200,6 +201,8 @@ sub ProcessGto {
     }
     # Store the quality metrics in the GEO.
     $geo->AddQuality($qFile);
+    # We no longer need the temp directory (if any).
+    undef $tmpObject;
     # If there is an improvement file, create the improved FASTA.
     my $improveFile = $options{improve};
     if ($improveFile && $complete >= 90 && ! GEO::contamX($contam)) {
