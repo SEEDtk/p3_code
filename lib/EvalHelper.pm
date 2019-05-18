@@ -112,6 +112,10 @@ This overrides C<external>.
 
 Number of parallel processes to run when evaluating the function predictors. The default is C<16>.
 
+=item workDir
+
+Name of a working directory for creating the matrix.  If none is specified, a temporary directory will be used.
+
 =back
 
 =back
@@ -123,8 +127,13 @@ sub ProcessGto {
     # Connect to PATRIC.
     my $p3 = $options{p3} // P3DataAPI->new();
     # Create the work directory.
-    my $tmpObject = File::Temp->newdir();
-    my $workDir = $tmpObject->dirname;
+    my $workDir = $options{workDir};
+    if (! $workDir) {
+        my $tmpObject = File::Temp->newdir();
+        $workDir = $tmpObject->dirname;
+    } elsif (! -d $workDir) {
+        File::Copy::Recursive::pathmk($workDir) || die "Could not create work directory: $!";
+    }
     # Create the consistency helper.
     my $evalCon = EvalCon->new(predictors => $options{predictors});
     # Get access to the statistics object.

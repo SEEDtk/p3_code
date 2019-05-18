@@ -87,7 +87,7 @@ if len(genomes.shape) != 2:
 
 if __name__ == '__main__':
 
-    predictions = joblib.Parallel(n_jobs=args.parallel)(joblib.delayed(run_predictor)(n_col) for n_col in range(X_all.shape[1]))
+    predictions = joblib.Parallel(n_jobs=args.parallel,prefer='threads')(joblib.delayed(run_predictor)(n_col) for n_col in range(X_all.shape[1]))
 
     predictions = np.asarray(predictions)
     predictions = np.transpose(predictions)

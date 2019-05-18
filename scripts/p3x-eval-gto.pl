@@ -54,6 +54,10 @@ The number of parallel processes to run when applying the function predictors. T
 If specified, the name of a FASTA file.  A reduced set of contigs representing an improved genome will be written to
 this file, if an improvement is possible.
 
+=item workDir
+
+Name of a working directory for creating the matrix.  If none is specified, a temporary directory will be used.
+
 =back
 
 =cut
@@ -75,6 +79,7 @@ my $opt = P3Utils::script_opts('gtoFile outFile outHtml',
         ['binned', 'the genome contig IDs are user-suppled, not PATRIC-generated'],
         ['improve=s', 'name of a FASTA file to contain an improved version of the GTO contigs'],
         ['parallel=i', 'parallelism to use in matrix evaluation', { default => 8 }],
+        ['workDir=s', 'name of a working directory for the evaluation matrix']
         );
 # Get access to PATRIC.
 my $p3 = P3DataAPI->new();
@@ -94,7 +99,7 @@ if (! $gto) {
 }
 # Call the main processor.
 my $geo = EvalHelper::ProcessGto($gto, 'ref' => $opt->ref, deep => $opt->deep, checkDir => $opt->checkdir, predictors => $opt->predictors,
-    parallel => $opt->parallel,
+    parallel => $opt->parallel, workDir => $opt->workdir,
     p3 => $p3, outFile => $outFile, outHtml => $outHtml, template => $opt->template, external => $opt->external, binned => $opt->binned,
     improve => $opt->improve);
 # Write the results.
