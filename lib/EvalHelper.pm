@@ -201,8 +201,6 @@ sub ProcessGto {
     }
     # Store the quality metrics in the GEO.
     $geo->AddQuality($qFile);
-    # We no longer need the temp directory (if any).
-    undef $tmpObject;
     # If there is an improvement file, create the improved FASTA.
     my $improveFile = $options{improve};
     if ($improveFile && $complete >= 90 && ! GEO::contamX($contam)) {
