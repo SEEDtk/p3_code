@@ -456,7 +456,7 @@ if ($force || ! -s $refScoreFile) {
     my $seqHash = $loader->GetDNA($matches, $reducedFastaFile, \@errors);
     # Warn about errors.
     if (@errors) {
-        print STDERR "WARNING: invalid locations returned by BLAST: " . join(", ", @errors) . "\n";
+        print STDERR "WARNING: invalid locations returned by BLAST: " . join(", ", map { $_->String } @errors) . "\n";
         $stats->Add(blastErrors => scalar @errors);
     }
     # Check for an exclude list.
