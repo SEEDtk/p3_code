@@ -452,7 +452,13 @@ my $refScoreFile = "$workDir/ref.genomes.scores.tbl";
 if ($force || ! -s $refScoreFile) {
     # No. Create a hash mapping each contig ID to the DNA sequence representing the hit. We do this by reading
     # the sample FASTA file and applying the matches hash.
-    my $seqHash = $loader->GetDNA($matches, $reducedFastaFile);
+    my @errors;
+    my $seqHash = $loader->GetDNA($matches, $reducedFastaFile, \@errors);
+    # Warn about errors.
+    if (@errors) {
+        print STDERR "WARNING: invalid locations returned by BLAST: " . join(", ", @errors) . "\n";
+        $stats->Add(blastErrors => scalar @errors);
+    }
     # Check for an exclude list.
     my $excludeFile = "$sampleDir/exclude.tbl";
     my %exclusions;

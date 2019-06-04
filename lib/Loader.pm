@@ -555,7 +555,7 @@ sub WriteBlank {
 
 =head3 GetDNA
 
-    my $seqHash = $loader->GetDNA($locHash, $fastaFile);
+    my $seqHash = $loader->GetDNA($locHash, $fastaFile, \@errors);
 
 Extract the DNA from a FASTA file. Each DNA sequence is identified by a key and a location. The incoming hash maps keys
 to L<BasicLocation> objects; the output hash will map keys to DNA sequences.
@@ -570,18 +570,25 @@ Reference to a hash mapping identifiers to L<BasicLocation> objects indicating D
 
 The name of a FASTA file containing the source DNA.
 
+=item errors (optional)
+
+If specified, a list reference.  Invalid locations will be returned in the list.
+
 =item RETURN
 
-Returns a hash mapping the identifiers to DNA sequences.
+Returns a hash mapping the identifiers to DNA sequences.  If a location exceeds the bounds of the contig it will be
+skipped.
 
 =back
 
 =cut
 
 sub GetDNA {
-    my ($self, $locHash, $fastaFile) = @_;
+    my ($self, $locHash, $fastaFile, $errors) = @_;
     # This will be the return hash.
     my %retVal;
+    # Insure we have a place to stash the errors.
+    $errors //= [];
     # Sort the locations by contig.
     my %contigHash;
     for my $id (keys %$locHash) {
@@ -596,15 +603,20 @@ sub GetDNA {
         my ($contig, undef, $seq) = @$fields;
         if (exists $contigHash{$contig}) {
             # We have locations in this contig. Loop through their IDs.
+            my $seqLen = length $seq;
             my $idList = $contigHash{$contig};
             for my $id (@$idList) {
                 # Get the location's sequence. Note we do a reverse compliment for the minus strand.
                 my $loc = $locHash->{$id};
-                my $subSeq = substr($seq, $loc->Left - 1, $loc->Length);
-                if ($loc->Dir eq '-') {
-                    SeedUtils::rev_comp(\$subSeq);
+                if ($loc->Left >= 1 && $loc->Right <= $seqLen) {
+                    my $subSeq = substr($seq, $loc->Left - 1, $loc->Length);
+                    if ($loc->Dir eq '-') {
+                        SeedUtils::rev_comp(\$subSeq);
+                    }
+                    $retVal{$id} = $subSeq;
+                } else {
+                    push @$errors, $loc;
                 }
-                $retVal{$id} = $subSeq;
             }
             # Denote we've processed another contig.
             $contigCount--;

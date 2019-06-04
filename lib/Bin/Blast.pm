@@ -460,7 +460,7 @@ sub FindProtein {
     for my $contig (keys %contigs) {
         my ($match) = sort { $b->Length <=> $a->Length} @{$contigs{$contig}};
         my $matchLen = $match->Length;
-        print "Match for $contig has length $matchLen.\n" if $debug;
+        print "Match for $contig has location" . $match->String . ".\n" if $debug;
         if ($matchLen >= $minDnaLen) {
             $retVal{$contig} = $match;
         }

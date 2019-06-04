@@ -2003,7 +2003,7 @@ sub form_blast_command
 
     push @cmd, -out_pssm            => $outPSSM           if $outPSSM;
     push @cmd, -out_ascii_pssm      => $outPSSM           if $asciiPSSM;
-
+    #print "Blast command is " . join(' ', @cmd) . "\n";
     wantarray ? @cmd : \@cmd;
 }
 

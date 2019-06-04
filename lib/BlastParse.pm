@@ -472,8 +472,7 @@ sub _processSequenceRecord {
 
 Parse BLAST output to produce an HSP record. A great deal of data must be
 parsed from the input stream, including the sequence information, which
-is split
-across several lines in the form of three lines of data per section.
+is split across several lines in the form of three lines of data per section.
 
 =over 4
 
