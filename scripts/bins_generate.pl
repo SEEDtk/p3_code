@@ -317,7 +317,7 @@ if ($force || ! -s $reducedFastaFile || ! -s $binFile) {
     # Create the bad-codon scanner.
     my $badLetters = BadLetters->new(prots => { N => $opt->asparlen, X => $opt->scaffoldlen });
     # Now loop through the contig input file. We also save a copy of the contig sequences.
-    print "Processing contig filters.\n";
+    print STDERR "Processing contig filters.\n";
     my $fh = $loader->OpenFasta(contig => $contigFile);
     open(my $ofh, '>', $sampleFastaFile) || die "Could not open FASTA output file: $!";
     my $fields = $loader->GetLine(contig => $fh);
@@ -348,7 +348,7 @@ if ($force || ! -s $reducedFastaFile || ! -s $binFile) {
     }
     close $ofh;
     # Now all the bins are created. Next we get the coverage information. This is computed from the vector file.
-    print "Reading coverage vector file.\n";
+    print STDERR "Reading coverage vector file.\n";
     my $vh = $loader->OpenFile(coverage => $vectorFile);
     # Throw away the first line. It contains headers.
     $fields = $loader->GetLine(coverage => $vh);
@@ -423,7 +423,7 @@ if ($force || ! -s $binsFoundFile) {
     # No. we must search for the specified universal protein to create the initial bins.
     # Get the list of genomes.
     my $protFile = $opt->seedprotfasta;
-    print "Seeding bin process using file $protFile.\n";
+    print STDERR "Seeding bin process using file $protFile.\n";
     $matches = $blaster->FindProtein($protFile);
     # Save the matches to a work file.
     open(my $oh, ">$binsFoundFile") || die "Could not open bins found output file: $!";
@@ -500,6 +500,7 @@ my %rg;
 # blast score.
 my %binHash;
 my %binBest;
+print STDERR "Creating bins.\n";
 for my $contig (keys %$contigHash) {
     # MatchProteins returns a list of results for each contig, but we have set up the parms to insure
     # each list is a singleton.
@@ -535,6 +536,7 @@ my $p3 = P3DataAPI->new();
 my @gtos;
 # This hash tracks the GTOs that need to be saved to disk.
 my %gtosToSave;
+print STDERR "Downloading reference genomes.\n";
 for my $refGenome (@refGenomes) {
     my $refGenomeFile = "$workDir/$refGenome.json";
     my $gto;
@@ -569,7 +571,7 @@ if ($opt->unassembled) {
     # Save the GTOs.
     SaveGTOs(\@refGenomes, \%gtosToSave, \@gtos, $workDir);
 } else {
-    print "Assembling bins.\n";
+    print STDERR "Assembling bins.\n";
     # Check for the kmer database.
     my $kmerFile = "$workDir/kmers.json";
     if (! -s $kmerFile || $force) {
@@ -686,7 +688,7 @@ if ($opt->unassembled) {
             $contig2Bin{$contig} = $binID;
         }
     }
-    print "Building mobile element kmer database.\n";
+    print STDERR "Building mobile element kmer database.\n";
     $kmerDB = Bin::Kmer->new(kmerSize => $opt->danglen, binStrength => 1);
     my $fh = $loader->OpenFasta(sample => $sampleFastaFile);
     my $unplacedFastaFile = "$workDir/unplaced.fasta";
@@ -740,7 +742,7 @@ if ($opt->unassembled) {
     }
     # Sort the bins and create the initial report.
     my @sorted = sort { Bin::cmp($a, $b) } @binList;
-    print "Writing bins to output.\n";
+    print STDERR "Writing bins to output.\n";
     close $oh; undef $oh;
     open($oh, ">$workDir/bins.json") || die "Could not open bins.json file: $!";
     for my $bin (@sorted) {
