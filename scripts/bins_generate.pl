@@ -335,10 +335,14 @@ if ($force || ! -s $reducedFastaFile || ! -s $binFile) {
                 # Create a new bin for this contig.
                 my $bin = Bin->new($contig, $len, 50);
                 $stats->Add(contigLetters => $len);
-                # Save it in the contig hash.
-                $contigs{$contig} = $bin;
-                # Save a copy of the sequence.
-                print $ofh ">$contig\n$seq\n";
+                # Save it in the contig hash.  If we have already seen a contig with this ID, we throw an error.
+                if (exists $contigs{$contig}) {
+                    die "Duplicate contig with ID $contig.";
+                } else {
+                    $contigs{$contig} = $bin;
+                    # Save a copy of the sequence.
+                    print $ofh ">$contig\n$seq\n";
+                }
             }
         } else {
             $stats->Add(contigTooSmallForBin => 1);
