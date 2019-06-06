@@ -188,6 +188,10 @@ The number of N-codons in a row to cause a contig to be rejected.  The default i
 
 The number of X-codons in a row to cause a contig to be rejected.  The default is C<20>.
 
+=item nameSuffix
+
+The suffix to use when naming the bins:  this is appended to the species name.  The default is C<clonal population>.
+
 =back
 
 =head2 Input Files
@@ -266,7 +270,8 @@ my $opt = ScriptUtils::Opts('sampleDir workDir',
                 ['genus',          'group by genus instead of species'],
                 ['statistics-file=s', 'save statistics data to this file'],
                 ['scaffoldLen|XBad=i', 'number of X codons in a row to cause a contig to be rejected', { default => 50 }],
-                ['asparLen|Nbad=i', 'number of N codons in a row to cause a contig to be rejected', { default => 12 }]
+                ['asparLen|Nbad=i', 'number of N codons in a row to cause a contig to be rejected', { default => 12 }],
+                ['nameSuffix=s',    'suffix to assign to the bin name', { default => 'clonal population' }],
         );
 # Enable access to PATRIC from Argonne.
 $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
@@ -309,6 +314,8 @@ if (! -s $seedFastaFile) {
 # This will be set to TRUE if we want to force file creation at any point.
 my $forceType = $opt->force // 'none';
 my $force = ($forceType eq 'all');
+# Get the naming suffix.
+my $nameSuffix = $opt->namesuffix;
 # This hash will contain all the contigs, it maps each contig ID to a bin object describing the contig's properties.
 my %contigs;
 # Do we already have the initial contig bins?
@@ -566,7 +573,7 @@ for my $refGenome (@refGenomes) {
 for my $title (keys %binBest) {
     my $genome = $binBest{$title}[0];
     my $gto = $rg{$genome};
-    $binHash{$title}->set_name("$title clonal population", $gto->{ncbi_taxonomy_id});
+    $binHash{$title}->set_name("$title $nameSuffix", $gto->{ncbi_taxonomy_id});
 }
 my $kmerDB;
 # The next step is to assign contigs to the bins.

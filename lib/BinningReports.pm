@@ -355,7 +355,7 @@ sub Summary {
         $gThing->{report_url} = $report_url_map->{$bin->id};
         my $genomeName = $bin->name;
         my $genomeKey = $genomeName;
-        if ($genomeName =~ /^(.+\sclonal population)/) {
+        if ($genomeName =~ /^(.+) cleaned/) {
             $genomeKey = $1;
         }
         my $genomeURL = join('/', URL_BASE, uri_escape($genomeID));
