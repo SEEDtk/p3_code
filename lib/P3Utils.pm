@@ -629,7 +629,7 @@ sub form_filter {
 
 =head3 select_clause
 
-    my ($selectList, $newHeaders) = P3Utils::select_clause($p3, $object, $opt, $idFlag);
+    my ($selectList, $newHeaders) = P3Utils::select_clause($p3, $object, $opt, $idFlag, \@default);
 
 Determine the list of fields to be returned for the current query. If an C<--attr> option is present, its
 listed fields are used. Otherwise, a default list is used.
@@ -653,6 +653,11 @@ L<Getopt::Long::Descriptive::Opts> object for the command-line options, includin
 If TRUE, then only the ID column will be specified if no attributes are explicitly specified. and if attributes are
 explicitly specified, the ID column will be added if it is not present.
 
+=item default
+
+If specified, must be a reference to a list of field names.  The named fields will be returned if no C<--attr> option
+is passed in.  This overrides the normal default fields.
+
 =item RETURN
 
 Returns a two-element list consisting of a reference to a list of the names of the
@@ -664,7 +669,7 @@ count, the first element will be undefined, and the second will be a singleton l
 =cut
 
 sub select_clause {
-    my ($p3, $object, $opt, $idFlag) = @_;
+    my ($p3, $object, $opt, $idFlag, $default) = @_;
     # Validate the object.
     my $realName = OBJECTS->{$object};
     die "Invalid object $object." if (! $realName);
@@ -681,6 +686,8 @@ sub select_clause {
     } elsif (! $attrList) {
         if ($idFlag) {
             $attrList = [IDCOL->{$object}];
+        } elsif ($default) {
+            $attrList = $default;
         } else {
             $attrList = FIELDS->{$object};
         }
