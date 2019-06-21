@@ -87,7 +87,7 @@ __PACKAGE__->mk_accessors(qw(benchmark chunk_size url ua reference_genome_cache
 
 our %EncodeMap = ('<' => '%60', '=' => '%61', '>' => '%62', '"' => '%34', '#' => '%35', '%' => '%37',
                   '+' => '%43', '/' => '%47', ':' => '%58', '{' => '%7B', '|' => '%7C', '}' => '%7D',
-                  '^' => '%94', '`' => '%96',);
+                  '^' => '%94', '`' => '%96', '&' => '%26', "'" => '%27');
 
 sub new {
     my ( $class, $url, $token, $params ) = @_;
@@ -127,6 +127,7 @@ sub new {
         ua         => LWP::UserAgent->new(),
         token      => $token,
         benchmark  => 0,
+        raw        => 0,
         reference_genome_cache => undef,
         family_db_dsn => "DBI:mysql:database=fams_2016_0819;host=fir.mcs.anl.gov",
         family_db_user => 'p3',
@@ -164,6 +165,27 @@ sub auth_header {
     } else {
         return ();
     }
+}
+
+=head3 set_raw
+
+    $d->set_raw($mode);
+
+Turn raw mode on or off.  If raw mode is on, the incoming parameters are not url-encoded before submission.
+
+=over 4
+
+=item mode
+
+TRUE to turn on raw mode; FALSE to turn it off.
+
+=back
+
+=cut
+
+sub set_raw {
+    my ($self, $mode) = @_;
+    $self->{raw} = $mode;
 }
 
 =head3 query
@@ -269,7 +291,9 @@ sub query
         my $end;
         $start = gettimeofday if $self->{benchmark};
         # Form url-encoding
-        $q =~ s/([<>"#\%+\/{}\|\\\^\[\]:`])/$P3DataAPI::EncodeMap{$1}/gs;
+        if (! $self->{raw}) {
+            $q =~ s/([<>"#\%+\/{}\|\\\^\[\]:`'])/$P3DataAPI::EncodeMap{$1}/gs;
+        }
         $q =~ tr/ /+/;
         # POST query
         $self->_log("$url?$q\n");
