@@ -25,6 +25,7 @@ package RoleParse;
     use warnings;
     use Digest::MD5;
     use Encode qw(encode_utf8);
+    use SeedUtils;
 
 =head1 Role Parser
 
