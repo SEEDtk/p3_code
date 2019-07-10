@@ -309,8 +309,8 @@ sub query
             if ( $response->is_success ) {
                 $resp = $response;
             } elsif ($tries > 5) {
-                my $content = $resp->content || "";
-                die "Failed: " . $resp->code . " $content\nURL = $core?$q";
+                my $content = $response->content || "";
+                die "Failed: " . $response->code . " $content\nURL = $core?$q";
             } else {
                 $self->_log("Retrying $q\n");
                 $tries++;
