@@ -242,7 +242,7 @@ sub data_options {
 
 =head3 col_options
 
-    my @opts = P3Utils::col_options();
+    my @opts = P3Utils::col_options($batchSize);
 
 This method returns a list of the L<Getopt::Long::Descriptive> specifications for the common column specification
 options. These options are as follows.
@@ -264,11 +264,16 @@ Input file has no headers.
 
 =back
 
+The method takes as a parameter a default batch size to override the normal
+default of 100.
+
 =cut
 
 sub col_options {
+    my ($batchSize) = @_;
+    $batchSize //= 100;
     return (['col|c=s', 'column number (1-based) or name', { default => 0 }],
-                ['batchSize|b=i', 'input batch size', { default => 100 }],
+                ['batchSize|b=i', 'input batch size', { default => $batchSize }],
                 ['nohead', 'file has no headers']);
 }
 
