@@ -295,18 +295,26 @@ sub query
             $q =~ s/([<>"#\%+\/{}\|\\\^\[\]:`'])/$P3DataAPI::EncodeMap{$1}/gs;
         }
         $q =~ tr/ /+/;
-        # POST query
-        $self->_log("$url?$q\n");
-        my $resp = $ua->post($url,
-                             Accept => "application/json",
-                             $self->auth_header,
-                             Content => $q,
-                        );
-        # print STDERR Dumper($resp);
-        $end = gettimeofday if $self->{benchmark};
-        if ( !$resp->is_success ) {
-            my $content = $resp->content || $q;
-            die "Failed: " . $resp->code . " $content\nURL = $core?$q";
+        # POST query - we retry 5 times after error
+        my $resp;
+        my $tries = 0;
+        while (! $resp) {
+            my $response = $ua->post($url,
+                                 Accept => "application/json",
+                                 $self->auth_header,
+                                 Content => $q,
+                            );
+            # print STDERR Dumper($resp);
+            $end = gettimeofday if $self->{benchmark};
+            if ( $response->is_success ) {
+                $resp = $response;
+            } elsif ($tries > 5) {
+                my $content = $resp->content || "";
+                die "Failed: " . $resp->code . " $content\nURL = $core?$q";
+            } else {
+                $self->_log("Retrying $q\n");
+                $tries++;
+            }
         }
         if ( $self->{benchmark} ) {
             my $elap = $end - $start;
