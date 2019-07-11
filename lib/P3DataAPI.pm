@@ -333,8 +333,8 @@ sub query
             my $this_start = $1;
             my $next       = $2;
             my $count      = $3;
-            if (! $started) {
-                $self->_log("$count results expected.\n");
+            if (! $started && $count >= 500) {
+                # $self->_log("$count results expected.\n");
                 $started = 1;
             }
             last if ( $next >= $count );
@@ -719,7 +719,7 @@ sub lookup_sequence_data
     for (my $i = 0; $i < $n; $i = $end + 1)
     {
         $end = ($i + $batchsize) > $n ? ($n - 1) : ($i + $batchsize - 1);
-        $self->_log("Processing $i to $end.\n");
+        # $self->_log("Processing $i to $end.\n");
         $self->query_cb('feature_sequence',
                         sub {
                             my($data) = @_;
