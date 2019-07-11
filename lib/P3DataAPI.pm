@@ -314,6 +314,7 @@ sub query
             } else {
                 $self->_log("Retrying $q\n");
                 $tries++;
+                sleep $tries + 2;
             }
         }
         if ( $self->{benchmark} ) {
