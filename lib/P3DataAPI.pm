@@ -289,40 +289,15 @@ sub query
         #			     Accept => "application/json",
         #			     Content => $q);
         my $end;
-        $start = gettimeofday if $self->{benchmark};
         # Form url-encoding
         if (! $self->{raw}) {
             $q =~ s/([<>"#\%+\/{}\|\\\^\[\]:`'])/$P3DataAPI::EncodeMap{$1}/gs;
         }
         $q =~ tr/ /+/;
         # POST query - we retry 5 times after error
-        my $resp;
-        my $tries = 0;
-        while (! $resp) {
-            my $response = $ua->post($url,
-                                 Accept => "application/json",
-                                 $self->auth_header,
-                                 Content => $q,
-                            );
-            # print STDERR Dumper($resp);
-            $end = gettimeofday if $self->{benchmark};
-            if ( $response->is_success ) {
-                $resp = $response;
-            } elsif ($tries > 5) {
-                my $content = $response->content || "";
-                die "Failed: " . $response->code . " $content\nURL = $core?$q";
-            } else {
-                $self->_log("Retrying $q\n");
-                $tries++;
-                sleep $tries + 2;
-            }
-        }
-        if ( $self->{benchmark} ) {
-            my $elap = $end - $start;
-            print STDERR "$elap\n";
-        }
+        my ($resp, $data) = $self->submit_query($core, $q);
         # print STDERR $resp->content;
-        my $data = decode_json( $resp->content );
+
         push @result, @$data;
 
         #        print STDERR scalar(@$data) . " results found.\n";
@@ -342,6 +317,47 @@ sub query
         }
     }
     return @result;
+}
+
+sub submit_query {
+    my ($self, $core, $q) = @_;
+    my $url   = $self->{url} . "/$core";
+    my $ua    = $self->{ua};
+    my ($resp, $data);
+    my $tries = 0;
+    while (! $resp) {
+        my $response = $ua->post($url,
+                             Accept => "application/json",
+                             $self->auth_header,
+                             Content => $q,
+                        );
+        # print STDERR Dumper($resp);
+        my $error;
+        if ( $response->is_success ) {
+            eval {
+                $data = decode_json($response->content);
+            };
+            if ($@) {
+                $error = "JSON decode error: $@";
+            } else {
+                $resp = $response;
+            }
+        } else {
+            my $content = $response->content || "";
+            $error = "Failed: " . $response->code . " $content\nquery = $url?$q";
+        }
+        if ($error) {
+            if ($tries >= 5) {
+                die $error;
+            } else {
+                my $qabbrv = substr($q, 0, 500) . (length($q) > 500 ? '...' : "");
+                $self->_log("Retrying $qabbrv\n");
+                $tries++;
+                sleep $tries + 2;
+            }
+        }
+    }
+    return ($resp, $data);
 }
 
 =head3 query_cb
@@ -459,23 +475,7 @@ sub query_cb {
     {
         my $lim = "limit($chunk,$start)";
         my $q   = "$qstr&$lim";
-        my $qurl = "$url?$q";
-
-        my $resp = $ua->post($url,
-                             Accept => "application/json",
-                             $self->auth_header,
-                             Content => $q,
-                           );
-        if (!$resp->is_success)
-        {
-            die "Failed: " . $resp->code . "\n" . $resp->content . "\n    for query '$q'\n";
-        }
-
-        my $data = eval { decode_json( $resp->content ); };
-        if ($@)
-        {
-            die "Error parsing response content:  $@";
-        }
+        my ($resp, $data) = $self->submit_query($core, $q);
 
         my $r = $resp->header('content-range');
 
