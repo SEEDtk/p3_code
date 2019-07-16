@@ -518,6 +518,11 @@ for my $contig (keys %$contigHash) {
     my $genomeData = $contigHash->{$contig}[0];
     my ($genome, $score, $name) = @$genomeData;
     # Compute the title for this genome, depending on whether we are sorting on genus or genus/species.
+    my @words = split ' ', $name;
+    if ($words[0] =~ /candidatus|uncultured/i) {
+        my $prefix = shift @words;
+        $words[0] = join(' ', $prefix, $words[0]);
+    }
     my ($genus, $species, $strain) = split ' ', $name;
     if ($species eq 'sp.') {
         $species .= " $strain";
