@@ -43,7 +43,7 @@ reference genome ID and produces an output web page.
 
 =head3 ProcessGto
 
-    EvalHelper::ProcessGto($gto, %options);
+    my $geo = EvalHelper::ProcessGto($gto, %options);
 
 Evaluate a L<GenomeTypeObject> in memory. The C<quality> member of the GTO will be updated with the results of the operation.
 
@@ -116,6 +116,10 @@ Number of parallel processes to run when evaluating the function predictors. The
 
 Name of a working directory for creating the matrix.  If none is specified, a temporary directory will be used.
 
+=item RETURN
+
+Returns the GEO used for evaluation.
+
 =back
 
 =back
@@ -158,8 +162,8 @@ sub ProcessGto {
     my %geoOptions = (roleHashes => [$nMap, $cMap], p3 => $p3, stats => $stats, detail => $detailLevel);
     # Start the predictor matrix for the consistency checker.
     $evalCon->OpenMatrix($workDir);
-    my $geo = GEO->CreateFromGto($gto, %geoOptions, external => $options{external}, binned => $options{binned});
-    my $genomeID = $geo->id;
+    my $retVal = GEO->CreateFromGto($gto, %geoOptions, external => $options{external}, binned => $options{binned});
+    my $genomeID = $retVal->id;
     # Do we have a reference genome ID?
     my $refID = $options{ref};
     my %refMap;
@@ -173,25 +177,25 @@ sub ProcessGto {
             }
         }
         # Get the lineage ID list.
-        my $taxResults = [[$geo->lineage || []]];
+        my $taxResults = [[$retVal->lineage || []]];
         $refID = _FindRef($taxResults, \%refMap, $genomeID);
     }
     if ($refID) {
         my $gHash = GEO->CreateFromPatric([$refID], %geoOptions);
         my $refGeo = $gHash->{$refID};
         if ($refGeo) {
-            $geo->AddRefGenome($refGeo);
+            $retVal->AddRefGenome($refGeo);
         }
     }
     # Open the output file for the quality data.
     my $qFile = "$workDir/$genomeID.out";
     open(my $oh, '>', $qFile) || die "Could not open work file: $!";
     # Output the completeness data.
-    my ($complete, $contam, $group, $seedFlag) = $evalG->Check2($geo, $oh);
+    my ($complete, $contam, $group, $seedFlag) = $evalG->Check2($retVal, $oh);
     close $oh;
     # Create the eval matrix for the consistency checker.
     $evalCon->OpenMatrix($workDir);
-    $evalCon->AddGeoToMatrix($geo);
+    $evalCon->AddGeoToMatrix($retVal);
     $evalCon->CloseMatrix();
     # Evaluate the consistency.
     my $par = $options{parallel} // 16;
@@ -200,12 +204,12 @@ sub ProcessGto {
         die "EvalCon returned error code $rc.";
     }
     # Store the quality metrics in the GEO.
-    $geo->AddQuality($qFile);
+    $retVal->AddQuality($qFile);
     # If there is an improvement file, create the improved FASTA.
     my $improveFile = $options{improve};
     if ($improveFile && $complete >= 90 && ! GEO::contamX($contam)) {
         # Find the bad contigs.
-        my $badHash = $geo->FindBadContigs();
+        my $badHash = $retVal->FindBadContigs();
         my $badFound = scalar keys %$badHash;
         if ($badFound) {
             # Write the good contigs.
@@ -226,12 +230,14 @@ sub ProcessGto {
     # If there is an output web page file, we create the detail page.
     if ($options{outHtml}) {
         my $detailFile = $options{template} // "$FIG_Config::mod_base/p3_code/lib/BinningReports/webdetails.tt";
-        my $retVal = BinningReports::Detail(undef, undef, $detailFile, $geo, $nMap);
+        my $page = BinningReports::Detail(undef, undef, $detailFile, $retVal, $nMap);
         open(my $oh, '>', $options{outHtml}) || die "Could not open HTML output file: $!";
-        print $oh $retVal;
+        print $oh $page;
     }
     # Copy the quality metrics to the GTO.
-    $geo->UpdateGTO($gto);
+    $retVal->UpdateGTO($gto);
+    # Return the geo.
+    return $retVal;
 }
 
 
