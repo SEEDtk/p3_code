@@ -37,7 +37,8 @@ package EvalHelper;
 This package is designed to help in evaluating genomes. It is not as efficient as the command-line scripts because it
 only evaluates a single genome at a time; however, it is useful in web environments where a single genome evaluation is
 all that is needed. The main L</Process> method takes as input a GTO file name or a PATRIC genome ID and an optional
-reference genome ID and produces an output web page.
+reference genome ID and produces an output web page.  There is also L</ProcessGto> that evaluates a GTO already in
+memory.
 
 =head2 Special Methods
 
