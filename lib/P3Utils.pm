@@ -165,6 +165,7 @@ use constant RELATED => {
         feature =>  {   na_sequence => ['na_sequence_md5', 'sequence', 'sequence'],
                         aa_sequence => ['aa_sequence_md5', 'sequence', 'sequence']
         },
+        genome => 	{	genetic_code => ['taxon_id', 'taxonomy', 'genetic_code']}
 };
 
 
