@@ -1373,10 +1373,8 @@ sub get_cols {
     if (ref $ih eq 'ARRAY') {
         @fields = @$ih;
     } else {
-        # Read the input line.
-        my $line = <$ih>;
         # Get the columns.
-        @fields = get_fields($line);
+        @fields = get_fields($ih);
     }
     # Extract the ones we want.
     my @retVal = map { $fields[$_] } @$cols;
