@@ -326,12 +326,13 @@ sub submit_query {
     my ($resp, $data);
     my $tries = 0;
     while (! $resp) {
+#        print STDERR "content = $q\n";
         my $response = $ua->post($url,
                              Accept => "application/json",
                              $self->auth_header,
                              Content => $q,
                         );
-        # print STDERR Dumper($resp);
+#        print STDERR Dumper($response);
         my $error;
         if ( $response->is_success ) {
             eval {
