@@ -134,7 +134,9 @@ use constant DERIVED => {
 use constant DERIVED_MULTI => {
             genome =>   {
                         },
-            feature =>  {   ec => 1
+            feature =>  {   ec => 1,
+                            subsystem => 1,
+                            pathway => 1
                         },
             genome_drug => {
                         },
@@ -157,15 +159,17 @@ use constant DERIVED_MULTI => {
 =head3 RELATED
 
 Mapping from objects to fields in related records. For each related field we have a list reference consisting of the key field name, the
-target table, and the target field.
+target table, the target table key, and the target field.
 
 =cut
 
 use constant RELATED => {
-        feature =>  {   na_sequence => ['na_sequence_md5', 'sequence', 'sequence'],
-                        aa_sequence => ['aa_sequence_md5', 'sequence', 'sequence']
+        feature =>  {   na_sequence => ['na_sequence_md5', 'feature_sequence', 'md5', 'sequence'],
+                        aa_sequence => ['aa_sequence_md5', 'feature_sequence', 'md5', 'sequence'],
+                        pathway => ['patric_id', 'pathway', 'patric_id', 'pathway_name'],
+                        subsystem => ['patric_id', 'subsystem', 'patric_id', 'subsystem_name']
         },
-        genome => 	{	genetic_code => ['taxon_id', 'taxonomy', 'genetic_code']}
+        genome => 	{	genetic_code => ['taxon_id', 'taxonomy', 'taxon_id', 'genetic_code']}
 };
 
 
@@ -1476,7 +1480,13 @@ sub list_object_fields {
         }
         # Get the related fields.
         $derivedH = RELATED->{$object};
-        push @retVal, map { "$_ (related)" } keys %$derivedH;
+        for my $field (keys %$derivedH) {
+            if ($multiH->{$field}) {
+                push @retVal, "$field (related) (multi)";
+            } else {
+                push @retVal, "$field (related)";
+            }
+        }
     }
     # Return the list.
     return [sort @retVal];
@@ -1537,13 +1547,14 @@ sub _process_entries {
     } else {
         # No. Generate the data. First we need the related-field hash.
         my $relatedH = RELATED->{$object};
+        my $multiH = DERIVED_MULTI->{$object};
         # Now we process the related fields. This is a two-level hash with primary key column name and secondary key input field value
         # that maps each input field value to its target value.
         my %relatedMap;
         for my $col (@$cols) {
             my $algorithm = $relatedH->{$col};
             if ($algorithm) {
-                $relatedMap{$col} = _related_field($p3, @$algorithm, $entries);
+                $relatedMap{$col} = _related_field($p3, @$algorithm, $entries, $multiH->{$col});
             }
         }
         # Now we need the derived fields, too.
@@ -1606,7 +1617,7 @@ sub _process_entries {
 
 =head3 _related_field
 
-    my $relatedMap = P3Utils::_related_field($p3, $linkField, $table, $dataField, $entries);
+    my $relatedMap = P3Utils::_related_field($p3, $linkField, $table, $tableKey, $dataField, $entries);
 
 Extract the values for a related field from a list of entries produced by
 a query. The link field value is taken from the entry and used to find a
@@ -1627,7 +1638,11 @@ The name of the field in the incoming entries containing the key for the seconda
 
 =item table
 
-The name of the secondary table containing the actual values.
+The name of the secondary table containing the actual values.  This is the real SOLR table name.
+
+=item tableKey
+
+The name of the key field to use in the secondary table to find the desired record(s).
 
 =item dataField
 
@@ -1636,6 +1651,10 @@ The name of the field in the secondary table containing the actual values. This 
 =item entries
 
 A reference to a list of the results from the base query.  Each result is a hash keyed on field name.
+
+=item multi
+
+If TRUE, then the related field will return multiple values.
 
 =item RETURN
 
@@ -1647,12 +1666,10 @@ Returns a reference to a hash mapping link field values to data field values.
 
 sub _related_field {
     # Get the parameters.
-    my ($p3, $linkField, $table, $dataField, $entries) = @_;
+    my ($p3, $linkField, $table, $tableKey, $dataField, $entries, $multi) = @_;
     # Declare the return variable.
     my %retVal;
     # We need to create a query for the link field values found. The query is limited in size to 2000 characters.
-    my $core = OBJECTS->{$table};
-    my $key = IDCOL->{$table};
     # These variables accumulate the current query.
     my ($batchSize, @keys) = (0);
     # Now loop through the entries, creating queries.
@@ -1663,7 +1680,7 @@ sub _related_field {
             $batchSize++;
             if ($batchSize >= 200) {
                 # The new key would make the query too big. Execute it.
-                _execute_query($p3, $core, $key, $dataField, \@keys, \%retVal);
+                _execute_query($p3, $table, $tableKey, $dataField, \@keys, \%retVal, $multi);
                 $batchSize = 0;
                 @keys = ();
             }
@@ -1673,7 +1690,7 @@ sub _related_field {
     }
     # Process the residual.
     if (@keys) {
-        _execute_query($p3, $core, $key, $dataField, \@keys, \%retVal);
+        _execute_query($p3, $table, $tableKey, $dataField, \@keys, \%retVal, $multi);
     }
     # Return the result.
     return \%retVal;
@@ -1681,7 +1698,7 @@ sub _related_field {
 
 =head3 _execute_query
 
-    P3Utils::_execute_query($p3, $core, $keyField, $dataField, \@keys, \%retHash);
+    P3Utils::_execute_query($p3, $core, $keyField, $dataField, \@keys, \%retHash, $multi);
 
 Execute a query to get the data values associated with a key. The mapping
 from keys to data values is added to the specified hash.
@@ -1708,6 +1725,10 @@ The real name of the associated data field.
 
 A reference to a list of the keys whose data values are desired.
 
+=item multi
+
+If TRUE, then the related field will return multiple values.
+
 =item retHash
 
 A reference to a hash into which results should be placed.
@@ -1718,14 +1739,19 @@ A reference to a hash into which results should be placed.
 
 sub _execute_query {
     # Get the parameters.
-    my ($p3, $core, $keyField, $dataField, $keys, $retHash) = @_;
+    my ($p3, $core, $keyField, $dataField, $keys, $retHash, $multi) = @_;
     # Create the query elements.
     my $select = ['select', $keyField, $dataField];
     my $filter = ['in', $keyField, '(' . join(",", @$keys) . ')'];
     # Execute the query.
     my @entries = $p3->query($core, $select, $filter);
     for my $entry (@entries) {
-        $retHash->{$entry->{$keyField}} = $entry->{$dataField};
+        if ($multi) {
+            my $result = $retHash->{$entry->{$keyField}};
+            push @$result, $entry->{$dataField};
+        } else {
+            $retHash->{$entry->{$keyField}} = $entry->{$dataField};
+        }
     }
 }
 
