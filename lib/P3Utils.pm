@@ -1747,8 +1747,7 @@ sub _execute_query {
     my @entries = $p3->query($core, $select, $filter);
     for my $entry (@entries) {
         if ($multi) {
-            my $result = $retHash->{$entry->{$keyField}};
-            push @$result, $entry->{$dataField};
+            push @{$retHash->{$entry->{$keyField}}}, $entry->{$dataField};
         } else {
             $retHash->{$entry->{$keyField}} = $entry->{$dataField};
         }
