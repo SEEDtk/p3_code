@@ -2540,9 +2540,9 @@ sub _BuildGeo {
         # need to call AnalyzeQualityData.
         $retVal->{quality} = \%quality;
         # Now copy over the quality statistics.
-        $retVal->{cdsPercent} = $gtoQ->{cds_ratio} * 100;
-        $retVal->{hypoPercent} = $gtoQ->{hypothetical_cds_ratio} * 100;
-        $retVal->{plfamPercent} = $gtoQ->{plfam_cds_ratio} * 100;
+        $retVal->{cdsPercent} = ($gtoQ->{cds_ratio} // 0) * 100;
+        $retVal->{hypoPercent} = ($gtoQ->{hypothetical_cds_ratio} // 0) * 100;
+        $retVal->{plfamPercent} = ($gtoQ->{plfam_cds_ratio} // 0) * 100;
     }
     # Check for a lineage.
     if ($gto->{ncbi_lineage}) {
