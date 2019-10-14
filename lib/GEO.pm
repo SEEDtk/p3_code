@@ -288,6 +288,13 @@ Open file handle for status messages. If not specified, no messages will be writ
 
 If specified, a hash of role IDs. Only roles in the hash will be kept in the role maps.
 
+=item modDir
+
+If specified, the name of a modification directory.  If a genome has been modified, there should be a file in the
+directory with the same name as the genome ID.  The file should be tab-delimited, with a feature ID in the first
+column, a three-digit code in the second column, and a functional assignment in the third.  If the first digit in
+the second column is C<1>, the third column contains a corrected functional assignment.
+
 =back
 
 =item RETURN
@@ -312,6 +319,13 @@ sub CreateFromPatric {
     my $p3 = $options{p3} // P3DataAPI->new();
     my $detail = $options{detail};
     my $rToUseH = $options{rolesToUse};
+    # Check for modification files.
+    my %modFiles;
+    if ($options{modDir}) {
+    	my $modDir = $options{modDir};
+    	opendir(my $dh, $modDir) || die "Could not open modification directory $modDir: $!";
+    	%modFiles = map { $_ => "$modDir/$_" } grep { $_ =~ /^\d+\.\d+$/ } readdir $dh;
+    }
     # Compute the feature columns for the current mode.
     my @fCols = qw(patric_id product aa_length);
     if ($detail) {
@@ -368,6 +382,11 @@ sub CreateFromPatric {
         _log($logH, "Reading features for $genome.\n");
         my $featureTuples = P3Utils::get_data($p3, feature => [['eq', 'genome_id', $genome]],
                 \@fCols);
+        # If there is a modification file, read the modifications.
+        my $realFuns = {};
+        if ($modFiles{$genome}) {
+        	$realFuns = _ReadModifications($modFiles{$genome});
+        }
         # These are used to count the pegs and roles.
         my %ckHash;
         my ($pegCount, $hypoCount) = (0, 0);
@@ -377,6 +396,10 @@ sub CreateFromPatric {
             $stats->Add(featureFoundPatric => 1);
             # Note that some of these will be undef if we are at a low detail level.
             my ($fid, $function, $aaLen, $contig, $start, $len, $dir, $prot) = @$featureTuple;
+            if ($realFuns->{$fid}) {
+            	$function = $realFuns->{$fid};
+            	$stats->add(functionModified => 1);
+            }
             if ($fid =~ /\.peg\./) {
                 if (SeedUtils::hypo($function)) {
                     $hypoCount++;
@@ -2434,6 +2457,43 @@ sub _RoleMaps {
     return ($nMap, $cMap);
 }
 
+=head3 _ReadModifications
+
+	my $fidHash = _ReadModifications($modFile);
+
+Read the modified features from a modification file.  The modification file is tab-delimited, with feature IDs in the first column,
+a three-digit code in the second column, and a functional assignment in the third.  The functional assignment is a corrected version
+if the first digit of the code is C<1>.
+
+=over 4
+
+=item modFile
+
+Name of the modification file.
+
+=item RETURN
+
+Returns a reference to a hash mapping each feature ID to its modified functional assignment (if any).
+
+=back
+
+=cut
+
+sub _ReadModifications {
+	my ($modFile) = @_;
+	# This will be the return hash.
+	my %retVal;
+	# Loop through the modification file.
+	open(my $ih, '<', $modFile) || die "Could not open modification file $modFile: $!";
+	while (! eof $ih) {
+		my $line = <$ih>;
+		my ($fid, $code, $newFun) = split /\t/, $line;
+		if (substr($code,0,1) eq '1') {
+			$retVal{$fid} = $newFun;
+		}
+	}
+	return \%retVal;
+}
 
 =head3 _BuildGeo
 
