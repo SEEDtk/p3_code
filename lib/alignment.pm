@@ -101,7 +101,7 @@ package alignment;
 
 use strict;
 use gjoseqlib;
-use SeedAware;
+use SeedTkRun;
 use File::Copy;
 use Carp;                       # Used for diagnostics
 eval { require Data::Dumper };  # Not present on all systems
@@ -162,16 +162,16 @@ sub align_with_mafft
        $seqs   ||= $opts->{ seqs }     || $opts->{ in }  || $opts->{ in1 };
     my $version  = $opts->{ version }  || 0;
 
-    my $mafft = SeedAware::executable_for( $opts->{ mafft } || $opts->{ program } || 'mafft' )
+    my $mafft = SeedTkRun::executable_for( $opts->{ mafft } || $opts->{ program } || 'mafft' )
         or print STDERR "Could not locate executable file for 'mafft'.\n"
             and return undef;
 
     if ( $version )
     {
-        my $tmpdir = SeedAware::location_of_tmp( $opts );
-        my $tmpF   = SeedAware::tmp_file_name( "version", '', $tmpdir );
+        my $tmpdir = SeedTkRun::location_of_tmp( $opts );
+        my $tmpF   = SeedTkRun::tmp_file_name( "version", '', $tmpdir );
 
-        SeedAware::system_with_redirect( $mafft, "--help", { stderr => $tmpF } );
+        SeedTkRun::system_with_redirect( $mafft, "--help", { stderr => $tmpF } );
         open( MAFFT, $tmpF ) or die "Could not open $tmpF";
         my @info = <MAFFT>;
         close( MAFFT );
@@ -230,10 +230,10 @@ sub align_with_mafft
     my $degap = ! ( $add || $profile );
     my $tree  = ! ( $add || $profile );
 
-    my $tmpdir = SeedAware::location_of_tmp( $opts );
-    my $tmpin  = SeedAware::tmp_file_name( "seqs",  'fasta', $tmpdir );
-    my $tmpin2 = SeedAware::tmp_file_name( "seqs2", 'fasta', $tmpdir );
-    my $tmpout = SeedAware::tmp_file_name( "ali",   'fasta', $tmpdir );
+    my $tmpdir = SeedTkRun::location_of_tmp( $opts );
+    my $tmpin  = SeedTkRun::tmp_file_name( "seqs",  'fasta', $tmpdir );
+    my $tmpin2 = SeedTkRun::tmp_file_name( "seqs2", 'fasta', $tmpdir );
+    my $tmpout = SeedTkRun::tmp_file_name( "ali",   'fasta', $tmpdir );
 
     if ( ! ( $seqs && ref($seqs) eq 'ARRAY' && @$seqs && ref($seqs->[0]) eq 'ARRAY' ) )
     {
@@ -296,7 +296,7 @@ sub align_with_mafft
     }
 
     my $redirects = { stdout => $tmpout, stderr => '/dev/null' };
-    SeedAware::system_with_redirect( $mafft, @params, $redirects );
+    SeedTkRun::system_with_redirect( $mafft, @params, $redirects );
 
     my @ali = &gjoseqlib::read_fasta( $tmpout );
     foreach $_ ( @ali ) { $_->[1] = $comment{$_->[0]} }
@@ -356,13 +356,13 @@ sub align_with_muscle
        $seqs   ||= $opts->{ seqs }     || $opts->{ in } || $opts->{ in1 };
     my $version  = $opts->{ version }  || 0;
 
-    my $muscle = SeedAware::executable_for( $opts->{ muscle } || $opts->{ program } || 'muscle' )
+    my $muscle = SeedTkRun::executable_for( $opts->{ muscle } || $opts->{ program } || 'muscle' )
         or print STDERR "Could not locate executable file for 'muscle'.\n"
             and return undef;
 
     if ( $version )
     {
-        SeedAware::system_with_redirect($muscle, "-version", { stdout => \$version });
+        SeedTkRun::system_with_redirect($muscle, "-version", { stdout => \$version });
         chomp $version;
         return $version;
     }
@@ -423,11 +423,11 @@ sub align_with_muscle
     my $degap = ! ( $add || $profile || $refine );
     my $tree  = ! ( $add || $profile || $refine );
 
-    my $tmpdir = SeedAware::location_of_tmp( $opts );
-    my $tmpin  = SeedAware::tmp_file_name( "seqs",  'fasta',  $tmpdir );
-    my $tmpin2 = SeedAware::tmp_file_name( "seqs2", 'fasta',  $tmpdir );
-    my $tmpout = SeedAware::tmp_file_name( "ali",   'fasta',  $tmpdir );
-    my $treeF  = SeedAware::tmp_file_name( "ali",   'newick', $tmpdir );
+    my $tmpdir = SeedTkRun::location_of_tmp( $opts );
+    my $tmpin  = SeedTkRun::tmp_file_name( "seqs",  'fasta',  $tmpdir );
+    my $tmpin2 = SeedTkRun::tmp_file_name( "seqs2", 'fasta',  $tmpdir );
+    my $tmpout = SeedTkRun::tmp_file_name( "ali",   'fasta',  $tmpdir );
+    my $treeF  = SeedTkRun::tmp_file_name( "ali",   'newick', $tmpdir );
 
     if ( ! ( $seqs && ref($seqs) eq 'ARRAY' && @$seqs && ref($seqs->[0]) eq 'ARRAY' ) )
     {
@@ -476,7 +476,7 @@ sub align_with_muscle
         push @params, "-$_", $opts->{$_}  if $prog_val{ $_ };
     }
 
-    SeedAware::run_redirected( $muscle, @params);
+    SeedTkRun::run_redirected( $muscle, @params);
 
     my @ali = &gjoseqlib::read_fasta( $tmpout );
     foreach $_ ( @ali ) { $_->[1] = $comment{$_->[0]} }
@@ -535,14 +535,14 @@ sub align_with_clustal
 
     #  Do the alignment:
 
-    my $tmpdir  = SeedAware::location_of_tmp( $opts );
-    my $seqfile = SeedAware::tmp_file_name( "align_fasta",  'fasta', $tmpdir );
-    my $outfile = SeedAware::tmp_file_name( "align_fasta",  'aln',   $tmpdir );
-    my $dndfile = SeedAware::tmp_file_name( "align_fasta",  'dnd',   $tmpdir );
+    my $tmpdir  = SeedTkRun::location_of_tmp( $opts );
+    my $seqfile = SeedTkRun::tmp_file_name( "align_fasta",  'fasta', $tmpdir );
+    my $outfile = SeedTkRun::tmp_file_name( "align_fasta",  'aln',   $tmpdir );
+    my $dndfile = SeedTkRun::tmp_file_name( "align_fasta",  'dnd',   $tmpdir );
 
     gjoseqlib::write_fasta( $seqfile, \@seqs2 );
 
-    my $clustalw = SeedAware::executable_for( $opts->{ clustalw } || $opts->{ program } || 'clustalw' )
+    my $clustalw = SeedTkRun::executable_for( $opts->{ clustalw } || $opts->{ program } || 'clustalw' )
         or print STDERR "Could not locate executable file for 'clustalw'.\n"
             and return undef;
 
@@ -553,7 +553,7 @@ sub align_with_clustal
                    '-maxdiv=0',
                    '-align'
                  );
-    SeedAware::run_redirected( $clustalw, @params);
+    SeedTkRun::run_redirected( $clustalw, @params);
 
     my @aligned = gjoseqlib::read_clustal_file( $outfile );
     unlink( $seqfile, $outfile, $dndfile );
@@ -656,10 +656,10 @@ sub add_to_alignment
 
     #  Do the profile alignment:
 
-    my $tmpdir  = SeedAware::location_of_tmp( );
-    my $profile = SeedAware::tmp_file_name( "add_to_align_1", 'fasta', $tmpdir );
-    my $seqfile = SeedAware::tmp_file_name( "add_to_align_2", 'fasta', $tmpdir );
-    my $outfile = SeedAware::tmp_file_name( "add_to_align",   'aln',   $tmpdir );
+    my $tmpdir  = SeedTkRun::location_of_tmp( );
+    my $profile = SeedTkRun::tmp_file_name( "add_to_align_1", 'fasta', $tmpdir );
+    my $seqfile = SeedTkRun::tmp_file_name( "add_to_align_2", 'fasta', $tmpdir );
+    my $outfile = SeedTkRun::tmp_file_name( "add_to_align",   'aln',   $tmpdir );
     ( my $dndfile = $profile ) =~ s/fasta$/dnd/;  # The program ignores our name
 
     gjoseqlib::write_fasta( $profile, \@relevant );
@@ -670,7 +670,7 @@ sub add_to_alignment
     #  Perhaps it would have made more sense to do a cd to the desired directory
     #  first.
     #
-    my $clustalw = SeedAware::executable_for( 'clustalw' )
+    my $clustalw = SeedTkRun::executable_for( 'clustalw' )
         or print STDERR "Could not locate executable file for 'clustalw'.\n"
             and return undef;
 
@@ -682,7 +682,7 @@ sub add_to_alignment
                    '-maxdiv=0',
                    '-profile'
                  );
-    SeedAware::run_redirected( $clustalw, @params );
+    SeedTkRun::run_redirected( $clustalw, @params );
 
     my @relevant_aligned = map { $_->[2] } gjoseqlib::read_clustal_file( $outfile );
 
@@ -1227,17 +1227,17 @@ sub clustal_profile_alignment_0
 {
     my ( $seqs1, $seqs2 ) = @_;
 
-    my $tmpdir  = SeedAware::location_of_tmp( );
-    my $profile = SeedAware::tmp_file_name( "add_to_align_1", 'fasta', $tmpdir );
-    my $seqfile = SeedAware::tmp_file_name( "add_to_align_2", 'fasta', $tmpdir );
-    my $outfile = SeedAware::tmp_file_name( "add_to_align",   'aln',   $tmpdir );
+    my $tmpdir  = SeedTkRun::location_of_tmp( );
+    my $profile = SeedTkRun::tmp_file_name( "add_to_align_1", 'fasta', $tmpdir );
+    my $seqfile = SeedTkRun::tmp_file_name( "add_to_align_2", 'fasta', $tmpdir );
+    my $outfile = SeedTkRun::tmp_file_name( "add_to_align",   'aln',   $tmpdir );
     ( my $dndfile = $profile ) =~ s/fasta$/dnd/;  # The program ignores our name
 
     $seqs2 = [ $seqs2 ] if ! ( ref $seqs2->[0] );
     gjoseqlib::write_fasta( $profile, $seqs1 );
     gjoseqlib::write_fasta( $seqfile, $seqs2 );
 
-    my $clustalw = SeedAware::executable_for( 'clustalw' )
+    my $clustalw = SeedTkRun::executable_for( 'clustalw' )
         or print STDERR "Could not locate executable file for 'clustalw'.\n"
             and return undef;
 
@@ -1249,7 +1249,7 @@ sub clustal_profile_alignment_0
                    '-maxdiv=0',
                    '-profile'
                  );
-    SeedAware::run_redirected( $clustalw, @params );
+    SeedTkRun::run_redirected( $clustalw, @params );
 
     #  2010-09-08: clustalw profile align can columns of all gaps; so pack it
 
@@ -1308,10 +1308,10 @@ sub fract_identity
     my ( $seq1, $seq2 ) = @_;
     my ( $s1, $s2, $i, $same );
 
-    my $tmpdir  = SeedAware::location_of_tmp( );
-    my $infile  = SeedAware::tmp_file_name( "fract_identity", 'fasta', $tmpdir );
-    my $outfile = SeedAware::tmp_file_name( "fract_identity", 'aln',   $tmpdir );
-    my $dndfile = SeedAware::tmp_file_name( "fract_identity", 'dnd',   $tmpdir );
+    my $tmpdir  = SeedTkRun::location_of_tmp( );
+    my $infile  = SeedTkRun::tmp_file_name( "fract_identity", 'fasta', $tmpdir );
+    my $outfile = SeedTkRun::tmp_file_name( "fract_identity", 'aln',   $tmpdir );
+    my $dndfile = SeedTkRun::tmp_file_name( "fract_identity", 'dnd',   $tmpdir );
 
     $s1 = $seq1->[2];
     $s1 =~ s/[^A-Za-z]+//g;
@@ -1319,7 +1319,7 @@ sub fract_identity
     $s2 =~ s/[^A-Za-z]+//g;
     gjoseqlib::write_fasta( $infile, [ [ "s1", "", $s1 ], [ "s2", "", $s2 ] ] );
 
-    my $clustalw = SeedAware::executable_for( 'clustalw' )
+    my $clustalw = SeedTkRun::executable_for( 'clustalw' )
         or print STDERR "Could not locate executable file for 'clustalw'.\n"
             and return undef;
 
@@ -1329,7 +1329,7 @@ sub fract_identity
                    '-maxdiv=0',
                    '-align'
                  );
-    SeedAware::run_redirected( $clustalw, @params );
+    SeedTkRun::run_redirected( $clustalw, @params );
 
     ( $s1, $s2 ) = map { $_->[2] } gjoseqlib::read_clustal_file( $outfile );  # just seqs
 
@@ -1428,9 +1428,9 @@ sub trim_with_blastall
 {
     my( $clnseq, $clnali, $type ) = @_;
 
-    my $tmpdir    = SeedAware::location_of_tmp( );
-    my $blastfile = SeedAware::tmp_file_name( "trim_blastdb", $tmpdir );
-    my $seqfile   = SeedAware::tmp_file_name( "trim_query",   $tmpdir );
+    my $tmpdir    = SeedTkRun::location_of_tmp( );
+    my $blastfile = SeedTkRun::tmp_file_name( "trim_blastdb", $tmpdir );
+    my $seqfile   = SeedTkRun::tmp_file_name( "trim_query",   $tmpdir );
 
     gjoseqlib::write_fasta( $blastfile, scalar gjoseqlib::pack_sequences( $clnali ) );
     gjoseqlib::write_fasta( $seqfile,   scalar gjoseqlib::pack_sequences( $clnseq ) );
@@ -1438,16 +1438,16 @@ sub trim_with_blastall
     $type = guess_seq_type( $clnseq->[2] ) if ! $type;
     my ( $is_prot, $prog, @opt ) = ( $type =~ m/^n/i ) ? qw( f blastn -r 1 -q -1 )
                                                        : qw( t blastp );
-    my $formatdb = SeedAware::executable_for( 'formatdb' )
+    my $formatdb = SeedTkRun::executable_for( 'formatdb' )
         or print STDERR "Could not locate executable file for 'formatdb'.\n"
             and return undef;
 
-    my $blastall = SeedAware::executable_for( 'blastall' )
+    my $blastall = SeedTkRun::executable_for( 'blastall' )
         or print STDERR "Could not locate executable file for 'blastall'.\n"
             and return undef;
 
     my @fmt_params = ( '-i', $blastfile, '-p', $is_prot );
-    SeedAware::run_redirected( $formatdb, @fmt_params );
+    SeedTkRun::run_redirected( $formatdb, @fmt_params );
 
     my @params = ( '-p', $prog,
                    '-d', $blastfile,
@@ -1460,7 +1460,7 @@ sub trim_with_blastall
                    @opt
                  );
     my $redirects = { stderr => '/dev/null' };
-    my $BLASTOUT = SeedAware::read_from_pipe_with_redirect( $blastall, @params, $redirects )
+    my $BLASTOUT = SeedTkRun::read_from_pipe_with_redirect( $blastall, @params, $redirects )
         or die "could not handle the blast";
     my @out = map { chomp; [ ( split )[ 1, 6, 7, 8, 9 ] ] } <$BLASTOUT>;
     close( $BLASTOUT );

@@ -20,7 +20,7 @@ package Bin::Blast;
 
     use strict;
     use warnings;
-    use BlastInterface;
+    use BlastUtils;
     use SeedUtils;
     use Stats;
     use File::Spec;
@@ -156,7 +156,7 @@ sub new {
         $blastFasta = $newName;
     }
     # Create the BLAST database for the sample contigs. If it already exists, it will be reused.
-    my $blastDbName = BlastInterface::get_db($blastFasta, 'tblastn', $workDir);
+    my $blastDbName = BlastUtils::get_db($blastFasta, 'tblastn', $workDir);
     # Create the object.
     my $retVal = {
         priv => $priv,
@@ -209,7 +209,7 @@ sub GoodProteinHits {
     my ($queryFileName, $uniLens) = $self->GetRefGenomeFasta($refGenome, uniOnly => 1);
     # Get the list of hits.
     my @matches = sort { ($a->sid cmp $b->sid) or ($a->s1 <=> $b->s1) }
-            BlastInterface::blast($queryFileName, $binFasta, 'tblastn',
+            BlastUtils::blast($queryFileName, $binFasta, 'tblastn',
             { outForm => 'hsp', maxE => $self->{maxE} });
     # Now we track the matches for each universal protein. The matches come back in the form of Hsp objects.
     # We want the sort the matches by percentage (defined as the identity count over the match length). If two
@@ -334,7 +334,7 @@ sub BestDnaHits {
     # Create a FASTA triples object for use by the blast interface software.
     my @triples = map { [$_, '', $seqHash->{$_}] } keys %$seqHash;
     # BLAST to get the matches.
-    my $matches = BlastInterface::blast(\@triples, $fastaFile, 'blastx',
+    my $matches = BlastUtils::blast(\@triples, $fastaFile, 'blastx',
             { maxE => $self->{maxE}, tmp_dir => $self->{workDir}, outForm => 'hsp' });
     # The matches come back in the order of best match to worst. For each match, the query sequence
     # ID will be the identifier from $seqHash, and the subject sequence ID will be a protein ID. The
@@ -446,7 +446,7 @@ sub FindProtein {
     print "Minimum match length is $minDnaLen.\n" if $debug;
     # Look for matches.
     my @matches = sort { ($a->sid cmp $b->sid) or ($a->s1 <=> $b->s1) }
-            BlastInterface::blast($protFile, $self->{blastDb}, 'tblastn',
+            BlastUtils::blast($protFile, $self->{blastDb}, 'tblastn',
             { outForm => 'hsp', maxE => $self->{maxE} });
     # The matches are in the form of Hsp objects. They are sorted by start position within contig.
     # We condense the matches into location objects in the following hash. This is where the gap
@@ -543,7 +543,7 @@ sub MatchProteins {
     # Compute the blast type.
     my $blastProg = ($mode eq 'dna' ? 'blastn' : 'blastx');
     # BLAST to get the matches against the protein DNA from the database.
-    my $matches = BlastInterface::blast(\@triples, $protFastaFile, $blastProg,
+    my $matches = BlastUtils::blast(\@triples, $protFastaFile, $blastProg,
             { maxE => $maxE, tmp_dir => $self->{workDir}, outForm => 'hsp' });
     # The query sequence IDs are sample contigs representing bins. The subject sequence IDs are
     # genome IDs. Save the best N genomes for each sample contig.
@@ -711,7 +711,7 @@ sub ProcessBlast {
     }
     print scalar(keys %$uniLens) . " universal roles found in $refGenome.\n" if $debug;
     # Blast this genome against the sample contigs.
-    my $matches = BlastInterface::blast($queryFileName, $self->{blastDb}, $blaster,
+    my $matches = BlastUtils::blast($queryFileName, $self->{blastDb}, $blaster,
         { outForm => 'hsp', maxE => $maxE });
     my $matchCount = scalar @$matches;
     $stats->Add(blastMatches => $matchCount);

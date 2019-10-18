@@ -15,7 +15,7 @@
 # http://www.theseed.org/LICENSE.TXT.
 #
 
-package BlastInterface;
+package BlastUtils;
 
 use Carp;
 use Data::Dumper;
@@ -24,7 +24,7 @@ use strict;
 use alignment;
 use gjoseqlib;
 use BlastParse;
-use SeedAware;
+use SeedTkRun;
 use File::Copy::Recursive;
 
 =head1 BLAST Interface Module
@@ -499,7 +499,7 @@ sub blast
 
     #  Have temporary directory ready in case we need it
 
-    my( $tempD, $save_temp ) = &SeedAware::temporary_directory($parms);
+    my( $tempD, $save_temp ) = &SeedTkRun::temporary_directory($parms);
     $parms->{tmp_dir}        = $tempD;
 
     #  These are the file names that will be handed to blastall
@@ -516,14 +516,14 @@ sub blast
     my %valid_tool = map { $_ => 1 } qw( blastn blastp blastx tblastn tblastx psiblast rpsblast rpstblastn );
     if ( ! $valid_tool{ lc $blast_prog } )
     {
-        warn "BlastInterface::blast: invalid blast program '$blast_prog'.\n";
+        warn "BlastUtils::blast: invalid blast program '$blast_prog'.\n";
     }
     elsif ( $blast_prog ne 'psiblast'
          && ! ( $queryF = &get_query( $query, $tempD, $parms ) )
        # && ! ( print STDERR Dumper($queryF = &get_query( $query, $tempD, $parms )) )
           )
     {
-        warn "BlastInterface::get_query: failed to get query sequence data.\n";
+        warn "BlastUtils::get_query: failed to get query sequence data.\n";
     }
     elsif ( $blast_prog eq 'psiblast'
          && $query
@@ -531,18 +531,18 @@ sub blast
        # && ! ( print STDERR Dumper(( $queryF, $parms ) = &psiblast_in_msa( $query, $parms )) )[0]
           )
     {
-        warn "BlastInterface::psiblast_in_msa: failed to get query msa data.\n";
+        warn "BlastUtils::psiblast_in_msa: failed to get query msa data.\n";
     }
     elsif (
             ! ( $dbF = &get_db( $$dbR, $blast_prog, $tempD, $parms ) )
        #    ! ( print STDERR Dumper($dbF = &get_db( $$dbR, $blast_prog, $tempD, $parms )) )
           )
     {
-        warn "BlastInterface::get_db: failed to get database sequence data.\n";
+        warn "BlastUtils::get_db: failed to get database sequence data.\n";
     }
     elsif ( ! ( $user_output = &run_blast( $queryF, $dbF, $blast_prog, $parms ) ) )
     {
-        warn "BlastInterface::blast: failed to run blastall.\n";
+        warn "BlastUtils::blast: failed to run blastall.\n";
         $user_output = [];
     }
 
@@ -613,16 +613,16 @@ sub alignment_to_pssm
 
     my $subject = [ 'subject', '', 'MKLYNLKDHNEQVSFAQAVTQGLGKNQGLFFPHDLPEFSLTEIDEMLKLDFVTRSAKILS' ];
 
-    my ( $fh, $subjectF ) = SeedAware::open_tmp_file( 'alignment_to_pssm_subject', 'fasta' );
+    my ( $fh, $subjectF ) = SeedTkRun::open_tmp_file( 'alignment_to_pssm_subject', 'fasta' );
     gjoseqlib::write_fasta( $fh, $subject );
     close( $fh );
 
     my $pssm0F;
-    ( $fh, $pssm0F ) = SeedAware::open_tmp_file( 'alignment_to_pssm', 'pssm0' );
+    ( $fh, $pssm0F ) = SeedTkRun::open_tmp_file( 'alignment_to_pssm', 'pssm0' );
     close( $fh );
 
-    my $prog = SeedAware::executable_for( 'psiblast' )
-        or warn "BlastInterface::alignment_to_pssm: psiblast program not found.\n"
+    my $prog = SeedTkRun::executable_for( 'psiblast' )
+        or warn "BlastUtils::alignment_to_pssm: psiblast program not found.\n"
             and return undef;
 
     my @args = ( -in_msa   => $alignF,
@@ -634,11 +634,11 @@ sub alignment_to_pssm
     push @args, -msa_master_idx    => $msa_master_idx  if $msa_master_idx > 1;
     push @args, -ignore_msa_master => ()               if $opts2->{ ignore_master };
     push @args, -comp_based_stats => 1;
-    my $rc = SeedAware::run_redirected( $prog, @args);
+    my $rc = SeedTkRun::run_redirected( $prog, @args);
     if ( $rc != 0 )
     {
         my $cmd = join( ' ', $prog, @args );
-        warn "BlastInterface::alignment_to_pssm: psiblast failed with rc = $rc: $cmd\n";
+        warn "BlastUtils::alignment_to_pssm: psiblast failed with rc = $rc: $cmd\n";
         return undef;
     }
 
@@ -849,7 +849,7 @@ sub psiblast_in_msa
         }
 
         @align
-            or warn "BlastInterface::psiblast_in_msa: No alignment supplied."
+            or warn "BlastUtils::psiblast_in_msa: No alignment supplied."
                 and return undef;
 
         $msa_master_id ||= $align[ $msa_master_idx - 1 ]->[0] if $msa_master_idx;
@@ -905,7 +905,7 @@ sub psiblast_in_msa
                 last;
             }
             $msa_master_idx
-                or warn "BlastInterface::psiblast_in_msa: msa_master_id '$msa_master_id' not found in alignment.";
+                or warn "BlastUtils::psiblast_in_msa: msa_master_id '$msa_master_id' not found in alignment.";
         }
 
         #  In psiblast 2.2.29+ command flags -ignore_master and
@@ -924,7 +924,7 @@ sub psiblast_in_msa
         {
             my $fh;
             my @dir = $opts->{ tmp_dir } ? ( $opts->{ tmp_dir } ) : ();
-            ( $fh, $alignF ) = SeedAware::open_tmp_file( 'psiblast_in_msa', 'fasta', @dir );
+            ( $fh, $alignF ) = SeedTkRun::open_tmp_file( 'psiblast_in_msa', 'fasta', @dir );
             gjoseqlib::write_fasta( $fh, \@align );
             close( $fh );
         }
@@ -981,7 +981,7 @@ sub build_rps_db
         push @pssms, $pssm;
     }
     @pssms
-        or warn "BlastInterface::build_rps_db: no valid pssm found.\n"
+        or warn "BlastUtils::build_rps_db: no valid pssm found.\n"
             and return '';
 
     open( DB, ">", $db ) or die "Could not open '$db'.\n";
@@ -1002,19 +1002,19 @@ sub build_rps_db
     my $title = $opts->{ title } || 'Untitled RPS DB';
     my @args = ( -in => $db, -title => $title );
 
-    my $prog = SeedAware::executable_for( $prog_name );
+    my $prog = SeedTkRun::executable_for( $prog_name );
 
     if ( ! $prog )
     {
-        warn "BlastInterface::build_rps_db: $prog_name program not found.\n";
+        warn "BlastUtils::build_rps_db: $prog_name program not found.\n";
         return '';
     }
 
-    my $rc = SeedAware::run_redirected( $prog, @args );
+    my $rc = SeedTkRun::run_redirected( $prog, @args );
     if ( $rc != 0 )
     {
         my $cmd = join( ' ', $prog, @args );
-        warn "BlastInterface::build_rps_db: $prog_name failed with rc = $rc: $cmd\n";
+        warn "BlastUtils::build_rps_db: $prog_name failed with rc = $rc: $cmd\n";
         return '';
     }
 
@@ -1033,11 +1033,11 @@ sub verify_pssm
     my ( $align, $title_to_pssm, $opts ) = @_;
 
     $align
-        or warn "BlastInterface::verify_pssm: invalid alignment"
+        or warn "BlastUtils::verify_pssm: invalid alignment"
             and return undef;
 
     $title_to_pssm && ref($title_to_pssm) eq 'HASH'
-        or warn "BlastInterface::verify_pssm: invalid title hash"
+        or warn "BlastUtils::verify_pssm: invalid title hash"
             and return undef;
 
     $opts = {} unless $opts && ref($opts) eq 'HASH';
@@ -1052,7 +1052,7 @@ sub verify_pssm
         if ( ! ( defined $title && length( $title ) ) )
         {
             $align ||= 'undefined';
-            warn "BlastInterface::verify_pssm: failed for alignment '$align'."
+            warn "BlastUtils::verify_pssm: failed for alignment '$align'."
                 and return undef;
         }
 
@@ -1062,7 +1062,7 @@ sub verify_pssm
     {
         my ( $id, $desc, $data ) = @$align;
         defined( $id ) && length( $id ) && $data
-            or warn "BlastInterface::verify_pssm: invalid alignment definition"
+            or warn "BlastUtils::verify_pssm: invalid alignment definition"
                 and return undef;
 
         $title = $id;
@@ -1073,7 +1073,7 @@ sub verify_pssm
              || ( ! ref( $data ) && -s $data )
            )
         {
-            my ( $fh, $path_name ) = SeedAware::open_tmp_file( "verify_pssm", "pssm" );
+            my ( $fh, $path_name ) = SeedTkRun::open_tmp_file( "verify_pssm", "pssm" );
 
             my %parms = %$opts;
             $parms{ title } = $title;
@@ -1085,21 +1085,21 @@ sub verify_pssm
         }
         else
         {
-            warn "BlastInterface::verify_pssm: invalid alignment definition data"
+            warn "BlastUtils::verify_pssm: invalid alignment definition data"
                 and return undef;
         }
 
     }
     else
     {
-        warn "BlastInterface::verify_pssm: invalid alignment structure"
+        warn "BlastUtils::verify_pssm: invalid alignment structure"
             and return undef;
     }
 
     # check if title is seen before
     if ( $title_to_pssm->{ $title } )
     {
-        warn "BlastInterface::verify_pssm: duplicated title '$title' in '$pssm'"
+        warn "BlastUtils::verify_pssm: duplicated title '$title' in '$pssm'"
             and return undef;
     }
 
@@ -1191,7 +1191,7 @@ sub psi_tblastn
             }
             else
             {
-                ( $dbfh, $aa_db ) = SeedAware::open_tmp_file( "psi_tblastn_db", '' );
+                ( $dbfh, $aa_db ) = SeedTkRun::open_tmp_file( "psi_tblastn_db", '' );
                 $opts->{ aa_db }  = $aa_db;
             }
             $dbfh or print STDERR 'Could not open $dbfile.'
@@ -1205,7 +1205,7 @@ sub psi_tblastn
         elsif ( -f $nt_db && -s $nt_db )
         {
             my $dbfh;
-            ( $dbfh, $aa_db ) = SeedAware::open_tmp_file( "psi_tblastn_db", '' );
+            ( $dbfh, $aa_db ) = SeedTkRun::open_tmp_file( "psi_tblastn_db", '' );
             close( $dbfh );   # Tacky, but it avoids the warning
 
             my $redir = { 'stdin'  => $nt_db,
@@ -1214,7 +1214,7 @@ sub psi_tblastn
             my $gencode = $opts->{ dbCode }
                        || $opts->{ dbGenCode }
                        || $opts->{ db_gen_code };
-            SeedAware::system_with_redirect( 'translate_fasta_6',
+            SeedTkRun::system_with_redirect( 'translate_fasta_6',
                                              $gencode ? ( -g => $gencode ) : (),
                                              $redir
                                            );
@@ -1582,7 +1582,7 @@ the temporary directory of the database
 
 If the datafile is readable, but is in a directory that is not writable, we
 copy it to $tempD or $options->{tmp_dir} and try to build the blast database
-there. If these are not available, it is built in L<SeedAware>.
+there. If these are not available, it is built in L<SeedTkRun>.
 
 =cut
 
@@ -1617,25 +1617,25 @@ sub verify_db
             : ( $db =~ m#^(.*[/\\])[^/\\]+$# ) ? $1 : '.';
     if ( ! -w $dir )
     {
-        $tempD ||= $opts->{ tmp_dir } || SeedAware::tmp_file_name( 'tmp_blast_db' );
+        $tempD ||= $opts->{ tmp_dir } || SeedTkRun::tmp_file_name( 'tmp_blast_db' );
 
         mkdir $tempD if $tempD && ! -d $tempD && ! -e $tempD;
         if ( ! $tempD || ! -d $tempD || ! -w $tempD )
         {
-            warn "BlastInterface::verify_db: failed to locate or make a writeable directory for blast database.\n";
+            warn "BlastUtils::verify_db: failed to locate or make a writeable directory for blast database.\n";
             return '';
         }
 
         my $newdb = "$tempD/db";
         if ( system( 'cp', $db, $newdb ) )  # I would prefer /bin/cp, but ...
         {
-            warn "BlastInterface::verify_db: failed to copy database file to a new location.\n";
+            warn "BlastUtils::verify_db: failed to copy database file to a new location.\n";
             return '';
         }
 
         #  This is just an informative message. If permissions are set correctly, it
         #  should never occur, but ....
-        print STDERR "BlastInterface::verify_db: Database '$db' copied to '$newdb'.\n";
+        print STDERR "BlastUtils::verify_db: Database '$db' copied to '$newdb'.\n";
 
         $db = $newdb;
     }
@@ -1645,9 +1645,9 @@ sub verify_db
     # Is this RPS or normal?
     if ($seq_type =~ m/^r/i ) {
         # Assembly the necessary data for makeprofiledb.
-        $prog = SeedAware::executable_for( 'makeprofiledb' );
+        $prog = SeedTkRun::executable_for( 'makeprofiledb' );
         if (! $prog) {
-            warn "BlastInterface::verify_db: makeprofiledb program not found.\n";
+            warn "BlastUtils::verify_db: makeprofiledb program not found.\n";
             return '';
         } else {
             @args = ( -in => $db );
@@ -1659,12 +1659,12 @@ sub verify_db
                      -in => $db
                    );
         #  Find formatdb appropriate for the excecution environemnt.
-        $prog = SeedAware::executable_for( 'makeblastdb' );
+        $prog = SeedTkRun::executable_for( 'makeblastdb' );
         if ( ! $prog )
         {
-            $prog = SeedAware::executable_for( 'formatdb' );
+            $prog = SeedTkRun::executable_for( 'formatdb' );
             if (! $prog) {
-                warn "BlastInterface::verify_db: makeblastdb/formatdb program not found.\n";
+                warn "BlastUtils::verify_db: makeblastdb/formatdb program not found.\n";
                 return '';
             } else {
                 @args = ( -i => $db, -p => ($is_prot eq 'prot' ? 'T' : 'F'));
@@ -1674,11 +1674,11 @@ sub verify_db
 
     #  Run database maker, redirecting the annoying messages about unusual residues.
 
-    my $rc = SeedAware::run_redirected( $prog, @args );
+    my $rc = SeedTkRun::run_redirected( $prog, @args );
     if ( $rc != 0 )
     {
         my $cmd = join( ' ', $prog, @args );
-        warn "BlastInterface::verify_db: formatdb failed with rc = $rc: $cmd\n";
+        warn "BlastUtils::verify_db: formatdb failed with rc = $rc: $cmd\n";
         return '';
     }
 
@@ -1696,11 +1696,11 @@ to remove it.
 Typical usage would be:
 
       my @out;
-      my $db = BlastInterface::verify_db( $file, ... );
+      my $db = BlastUtils::verify_db( $file, ... );
       if ( $db )
       {
-          @out = BlastInterface::blast( $query, $db, 'blastp', ... );
-          BlastInterface::remove_blast_db_dir( $db ) if $db ne $file;
+          @out = BlastUtils::blast( $query, $db, 'blastp', ... );
+          BlastUtils::remove_blast_db_dir( $db ) if $db ne $file;
       }
 
 We need to be stringent. The database must be named db, in a directory
@@ -1742,7 +1742,7 @@ sub run_blast
                 and return wantarray ? () : [];
     }
     my $cmd   = &form_blast_command( $queryF, $dbF, $blast_prog, $parms )
-        or warn "BlastInterface::run_blast: Failed to create a blast command."
+        or warn "BlastUtils::run_blast: Failed to create a blast command."
             and return wantarray ? () : [];
     my %redir = ();
     if ($parms->{ warnings }) {
@@ -1751,7 +1751,7 @@ sub run_blast
     my $fh;
     $redir{stdout} = \$fh;
     $redir{stdin} = $queryF;
-    my $rc = &SeedAware::run_redirected( @$cmd, \%redir );
+    my $rc = &SeedTkRun::run_redirected( @$cmd, \%redir );
     if ($rc) {
         return wantarray ? () : [];
     }
@@ -1852,7 +1852,7 @@ sub form_blast_command
     $queryF && $dbF && $blast_prog && $prog_ok{ $blast_prog }
         or return wantarray ? () : [];
 
-    my $prog = SeedAware::executable_for( $blast_prog );
+    my $prog = SeedTkRun::executable_for( $blast_prog );
 
     $prog
         or return wantarray ? () : [];

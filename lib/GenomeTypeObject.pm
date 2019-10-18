@@ -56,7 +56,6 @@ the C<prepare_for_return()> method which strips these indexes out of the data ob
 use strict;
 use warnings;
 use SeedUtils;
-require SeedAware;
 use File::Temp;
 use File::Slurp;
 use JSON::XS;
@@ -425,7 +424,7 @@ sub hostname
     my($self) = @_;
 
     return $self->{_hostname} if $self->{_hostname};
-    $self->{_hostname} = SeedAware::run_gathering_output( 'hostname' );
+    ($self->{_hostname}) = `hostname`;
     chomp $self->{_hostname};
     return $self->{_hostname};
 }
@@ -1102,17 +1101,17 @@ sub write_seed_dir
     # Taxonomy is supposed to be a string ... (!)
     if (ref($self->{taxonomy}))
     {
-	my @t = @{$self->{taxonomy}};
-	shift @t if $t[0] =~ /^cellular/;
+    my @t = @{$self->{taxonomy}};
+    shift @t if $t[0] =~ /^cellular/;
 
-	print Dumper(\@t);
-	$write_md->("TAXONOMY", join("; ", @t));
+    print Dumper(\@t);
+    $write_md->("TAXONOMY", join("; ", @t));
     }
     else
     {
-	my $t = $self->{taxonomy};
-	$t =~ s/^cellular[^;]+;\s+//;
-	$write_md->("TAXONOMY", $t);
+    my $t = $self->{taxonomy};
+    $t =~ s/^cellular[^;]+;\s+//;
+    $write_md->("TAXONOMY", $t);
     }
     $write_md->("TAXONOMY_ID", $self->{ncbi_taxonomy_id}) if $self->{ncbi_taxonomy_id};
 
@@ -1120,7 +1119,7 @@ sub write_seed_dir
     my %types = map { $_->{type} => 1 } @$features;
 
     my %typemap;
-    
+
     if ($options->{map_CDS_to_peg})
     {
         delete $types{CDS};
@@ -1130,7 +1129,7 @@ sub write_seed_dir
     $typemap{$_} = $_ foreach @types;
     if (ref(my $tm = $options->{typemap}))
     {
-	$typemap{$_} = $tm->{$_} foreach keys %$tm;
+    $typemap{$_} = $tm->{$_} foreach keys %$tm;
     }
     $typemap{CDS} = 'peg' if $options->{map_CDS_to_peg};
     @types = grep { $_ } values %typemap;
@@ -1195,13 +1194,13 @@ sub write_seed_dir
             $fid = "fig|$fid";
         }
 
-	if (exists($typemap{$type}))
-	{
-	    my $ntype = $typemap{$type};
-	    next if !$ntype;
+    if (exists($typemap{$type}))
+    {
+        my $ntype = $typemap{$type};
+        next if !$ntype;
 
             $fid =~ s/\.$type\./.$ntype./;
-	    $type = $ntype;
+        $type = $ntype;
         }
         my $function = $feature->{function} || "hypothetical protein";
         print $func_fh "$fid\t$function\n";
@@ -1212,17 +1211,17 @@ sub write_seed_dir
         my @bloc;
         for my $loc_part (@$loc)
         {
-	    if (!ref($loc_part))
-	    {
-		die Dumper($feature);
-	    }
+        if (!ref($loc_part))
+        {
+        die Dumper($feature);
+        }
             my($ctg, $start, $strand, $len) = @$loc_part;
             my $bl = BasicLocation->new($ctg, $start, $strand, $len);
             push(@bloc, $bl);
         }
         my $sloc = join(",", map { $_->SeedString() } @bloc);
 
-	@aliases = @{$feature->{aliases}} if ref($feature->{aliases});
+    @aliases = @{$feature->{aliases}} if ref($feature->{aliases});
         print { $tbl_fh{$type} } join("\t", $fid, $sloc, @aliases), "\n";
 
         if ($feature->{protein_translation})
@@ -1231,12 +1230,12 @@ sub write_seed_dir
         }
         elsif ($type eq 'peg' || $type eq 'CDS')
         {
-	    my $dna = $self->get_feature_dna($feature->{id});
-	    my $code = SeedUtils::genetic_code($self->{genetic_code});
-	    my $aa = SeedUtils::translate($dna, $code, 1);
+        my $dna = $self->get_feature_dna($feature->{id});
+        my $code = SeedUtils::genetic_code($self->{genetic_code});
+        my $aa = SeedUtils::translate($dna, $code, 1);
             write_fasta($fasta_fh{$type}, [$fid, undef, $aa]);
         }
-	else
+    else
         {
             write_fasta($fasta_fh{$type}, [$fid, undef, $self->get_feature_dna($feature->{id})]);
         }

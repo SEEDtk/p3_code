@@ -16,7 +16,7 @@
 #
 
 
-package SeedAware;
+package SeedTkRun;
 
     use strict;
     use warnings;
@@ -31,7 +31,7 @@ package SeedAware;
 =head1 Operating System Access Methods
 
 This package provides methods for accessing the operating system. It is a not quite a drop-in
-replacement for the old SeedAware module from the SEED.  In addition, it is not prepared to run
+replacement for the old SeedTkRun module from the SEED.  In addition, it is not prepared to run
 outside the SEEDtk world. At some point in the future, when I'm not under a crushing deadline,
 this can be corrected.
 
@@ -39,7 +39,7 @@ this can be corrected.
 
 =head3 executable_for
 
-    my $exeWithPath = SeedAware::executable_for($programName);
+    my $exeWithPath = SeedTkRun::executable_for($programName);
 
 Find the location of the specified program in the execution path and return the fully-qualified
 name.
@@ -90,7 +90,7 @@ sub executable_for {
 
 =head3 location_of_tmp
 
-    my $dirName = SeedAware::location_of_tmp(\%options);
+    my $dirName = SeedTkRun::location_of_tmp(\%options);
 
 Return the name of a directory in which temporary files can be written. The first choice is the
 directory specified in the C<tmp> member of the incoming options hash and the second choice is the
@@ -132,11 +132,11 @@ sub location_of_tmp {
 
 =head3 tmp_file
 
-    my $fileName = SeedAware::tmp_file($base, $ext, $dir);
+    my $fileName = SeedTkRun::tmp_file($base, $ext, $dir);
 
 or
 
-    my ($fh, $fileName) = SeedAware::tmp_file($base, $ext, $dir);
+    my ($fh, $fileName) = SeedTkRun::tmp_file($base, $ext, $dir);
 
 Create a temporary file name. The file name will be formed from the specified base name with
 the specified extension in the specified directory.  All three arguments are optional. The
@@ -191,7 +191,7 @@ sub tmp_file {
 
 =head3 open_tmp_file
 
-    my ($fh, $fileName) = SeedAware::open_tmp_file($base, $ext, $dir);
+    my ($fh, $fileName) = SeedTkRun::open_tmp_file($base, $ext, $dir);
 
 This is a legacy interface to L<tmp_file> that always returns an open output file handle.
 
@@ -205,7 +205,7 @@ sub open_tmp_file {
 
 =head3 tmp_file_name
 
-    my $fileName = SeedAware::tmp_file_name($base, $ext, $dir);
+    my $fileName = SeedTkRun::tmp_file_name($base, $ext, $dir);
 
 This is a legacy interface to L</tmp_file> that always returns the name of an unopened file.
 
@@ -219,7 +219,7 @@ sub tmp_file_name {
 
 =head3 temporary_directory
 
-    my ($tmp_dir, $save_dir) = SeedAware::temporary_directory(\%options);
+    my ($tmp_dir, $save_dir) = SeedTkRun::temporary_directory(\%options);
 
 Create a temporary directory, with various options.
 
@@ -382,11 +382,11 @@ sub run_redirected {
 
 =head3 run_gathering_output
 
-    my $lines = SeedAware::run_gathering_output($command, @parms);
+    my $lines = SeedTkRun::run_gathering_output($command, @parms);
 
 or
 
-    my @lines = SeedAware::run_gathering_output($command, @parms);
+    my @lines = SeedTkRun::run_gathering_output($command, @parms);
 
 Run a command, returning the output in a list or string.
 

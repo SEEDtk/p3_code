@@ -20,7 +20,7 @@ package Bin::ContigBlast;
 
     use strict;
     use warnings;
-    use BlastInterface;
+    use BlastUtils;
     use FIG_Config;
     use File::Copy::Recursive;
     use Hsp;
@@ -247,7 +247,7 @@ sub FindMatches {
     # Call the blast interface.
     $self->log("Blasting $inCount sequences.");
     my $time = time;
-    my @results = BlastInterface::blastx(\@triples, $self->{blastDB},
+    my @results = BlastUtils::blastx(\@triples, $self->{blastDB},
             { outForm => 'hsp', maxE => $self->{maxE} });
     $stats->Add(blastTime => (time - $time));
     $stats->Add(blastSeqs => $inCount);
