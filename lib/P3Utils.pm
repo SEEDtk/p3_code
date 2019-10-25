@@ -1886,4 +1886,69 @@ sub _select_list {
     return [sort keys %retVal];
 }
 
+=head3 json_field
+
+    my $value = P3Utils::json_field($object, $name, %options);
+
+Get the value of a field from an object that is believed to have been read from JSON format. If the
+object is a workspace object, it is dereferenced. If the field is not found, an error is thrown.
+
+=over 4
+
+=item object
+
+Object from which to extract the field.
+
+=item name
+
+Name of the field to extract.
+
+=item options
+
+A hash of options, containing zero or more of the following keys.
+
+=over 8
+
+=item optional
+
+If TRUE, then a missing field will return an undefined value instead of an error.
+
+=back
+
+=item RETURN
+
+Returns the value of the specified field.
+
+=back
+
+=cut
+
+sub json_field {
+    my ($object, $name, %options) = @_;
+    my $retVal;
+    # Check for the field.
+    if (exists ($object->{$name})) {
+        $retVal = $object->{$name};
+    } else {
+        # Try de-referencing.
+        if (! exists $object->{data}) {
+            if (! $options{optional}) {
+                die "Field $name not found in input object.";
+            }
+        } else {
+            my $data = $object->{data};
+            if (! exists $data->{$name}) {
+                if (! $options{optional}) {
+                    die "Field $name not found in input object.";
+                }
+            } else {
+                $retVal = $data->{$name};
+            }
+        }
+    }
+    # Return the result.
+    return $retVal;
+}
+
+
 1;
