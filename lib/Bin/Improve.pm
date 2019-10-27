@@ -25,6 +25,7 @@ package Bin::Improve;
     use EvalCon;
     use Stats;
     use P3DataAPI;
+    use RoleParse;
 
 =head1 Use Quality Information to Produce an Improved Bin
 
@@ -56,6 +57,10 @@ A L<stats> object for tracking statistics.
 
 The minimum completeness for a genome to be eligible for improvement.
 
+=item variantMap
+
+Reference to a hash keyed on subsystem name.  Each subsystem maps to a list of lists, each sub-list containing a list of roles forming a subsystem variant possibility.
+
 =back
 
 =head2 Special Methods
@@ -71,7 +76,7 @@ Create a new bin improvement object.
 =item workDir
 
 The name of the working directory containing the binning files, or C<undef> if no binning files are present.
-In this case, reference genomes are pulling from the PATRIC store.
+In this case, reference genomes are pulled from the PATRIC store.
 
 =item options
 
@@ -91,6 +96,15 @@ A L<Stats> object for tracking statistics.  If none is specified, one will be cr
 
 The minimum completeness for a genome to be eligible for improvement.  The default is C<90>.
 
+=item roleFile
+
+The C<roles.in.subsystems> file containing the mapping between role IDs, checksums, and role names.  The default is
+C<roles.in.subsystems> in the P3 data directory.
+
+=item variantMap
+
+The C<variantMap.tbl> file containing the subsystem definitions. The default is C<variantMap.tbl> in the P3 data directory.
+
 =back
 
 =back
@@ -102,12 +116,26 @@ sub new {
     # Get the helper objects.
     my $p3 = $options{p3} // P3DataAPI->new();
     my $stats = $options{stats} // Stats->new();
+    my $roleFile = $options{roleFile} // "$FIG_Config::p3data/roles.in.subsystems";
+    my $variantMap = $options{variantMap} // "$FIG_Config::p3data/variantMap.tbl";
     # Get the tuning options.
     my $min = $options{minComplete} // 90;
     # Get the role hashes.
     my ($nMap, $cMap) = EvalCon::LoadRoleHashes("$FIG_Config::p3data/roles.in.subsystems", $stats);
+    # Get the variant map.
+    my %vMap;
+    open(my $vh, '<', $variantMap) || die "Could not open $variantMap: $!";
+    while (! eof $vh) {
+        my $line = <$vh>;
+        chomp $line;
+        my ($sub, $var, $roles) = split /\t/, $line;
+        my @roles = split /\s+/, $roles;
+        push @{$vMap{$sub}}, \@roles;
+        $stats->Add(variantIn => 1);
+    }
     # Create the object.
-    my $retVal = { workDir => $workDir, roleHashes => [$nMap, $cMap], stats => $stats, p3 => $p3, minComplete => $min };
+    my $retVal = { workDir => $workDir, roleHashes => [$nMap, $cMap], stats => $stats, p3 => $p3, minComplete => $min,
+        variantMap => \%vMap };
     # Bless and return it.
     bless $retVal, $class;
     return $retVal;
@@ -157,51 +185,42 @@ sub eligible {
 
 =head3 Improve
 
-    my $triples = $improver->Improve($bin, $gto, $fastaFile);
+    my $improvedFlag = $improver->Improve($refs, $gto);
 
-Attempt to improve a bin.
+Attempt to improve a bin.  The L<GenomeTypeObject> will be updated in place and its quality data deleted.
 
 =over 4
 
-=item bin
+=item refs
 
-A L<Bin> object for the bin to be improved.
+Reference to a list of IDs for the reference genomes.
 
 =item gto
 
 The L<GenomeTypeObject> containing the genome and its quality information.
 
-=item fastaFile
-
-The name to give to the FASTA file for the bin.
-
-=item triples
-
-Reference to a list of 3-tuples representing the contigs in the genome.
-
 =item RETURN
 
-Returns a reference to a list of FASTA triples for the improved bin, or C<undef> if the bin is not improvable.
+Returns TRUE if the bin was modified, else FALSE.
 
 =back
 
 =cut
 
-sub Process {
-    my ($self, $bin, $gto, $fastaFile, $triples) = @_;
+sub Improve {
+    my ($self, $refs, $gto) = @_;
     # Get the stats object.
     my $stats = $self->{stats};
     # Get the work directory.
     my $workDir = $self->{workDir};
-    # This will be set to a list of output triples if we improve the bin.
+    # This will be set to a TRUE if we improve the bin.
     my $retVal;
     # Create the GEO options.
     my %gOptions = (roleHashes => $self->{roleHashes}, detail => 2, p3 => $self->{p3}, stats => $stats);
     # Create the GEO for the sample bin.
     my $geo = GEO->CreateFromGto($gto, %gOptions);
     # Get the reference genome IDs.
-    my @refGenomes = $bin->refGenomes;
-    for my $refGenome (@refGenomes) {
+    for my $refGenome (@$refs) {
         my $refGeo;
         if ($workDir && -s "$workDir/$refGenome.json") {
             $refGeo = GEO->CreateFromGto("$workDir/$refGenome.json", %gOptions);
@@ -219,20 +238,124 @@ sub Process {
     if (! $badFound) {
         $stats->Add(improveNoBadContigs => 1);
     } else {
-        # Write and save the good contigs.
-        $retVal = [];
-        open(my $oh, '>', $fastaFile) || die "Could not open FASTA file $fastaFile: $!";
-        for my $contig (@$triples) {
-            if ($badHash->{$contig->[0]}) {
-                $stats->Add(improveBadContig => 1);
+        # Remove the bad contigs.
+        $self->TrimGto($gto, $badHash);
+        $retVal = 1;
+    }
+    return $retVal;
+}
+
+=head3 TrimGto
+
+    $improver->TrimGto($gto, $badH);
+
+Remove bad contigs from a L<GenomeTypeObject> and adjust the features and subsystems accordingly.  The quality data will need to be regenerated.
+
+=over 4
+
+=item gto
+
+The L<GenomeTypeObject> to be modified.
+
+=item badH
+
+Reference to a hash that maps the ID of each contig to be removed to a TRUE value.
+
+=back
+
+=cut
+
+sub TrimGto {
+    my ($self, $gto, $badH) = @_;
+    my $stats = $self->{stats};
+    # Physically remove the contigs.
+    my $oldContigs = $gto->{contigs};
+    my @newContigs;
+    for my $contig (@$oldContigs) {
+        if (! $badH->{$contig->{id}}) {
+            push @newContigs, $contig;
+            $stats->Add(contigKept => 1);
+        }
+    }
+    $gto->{contigs} = \@newContigs;
+    # This hash will track the removed features.
+    my %lostFids;
+    # Physically remove the features on the contigs.
+    my $oldFids = $gto->{features};
+    my @newFids;
+    for my $fid (@$oldFids) {
+        my $locList = $fid->{location};
+        my $badContigFound;
+        for my $loc (@$locList) {
+            $badContigFound ||= $badH->{$loc->[0]};
+        }
+        if ($badContigFound) {
+            $lostFids{$fid->{id}} = 1;
+            $stats->Add(fidRemoved => 1);
+        } else {
+            push @newFids, $fid;
+            $stats->Add(fidKept => 1);
+        }
+    }
+    $gto->{features} = \@newFids;
+    # Now physically remove the deleted features from the subsystems.  If the subsystem is no longer sufficiently
+    # large, delete the subsystem too.
+    my $variantMap = $self->{variantMap};
+    my $oldSubs = $gto->{subsystems};
+    my @newSubs;
+    for my $sub (@$oldSubs) {
+        my $bindings = $sub->{role_bindings};
+        # We need not only the new role bindings, but the checksums of the roles kept.
+        my (@newRoles, %checkSums, $changes);
+        for my $binding (@$bindings) {
+            my $oldFids = $binding->{features};
+            my @newFids;
+            for my $fid (@$oldFids) {
+                if ($lostFids{$fid}) {
+                    $stats->Add(subFidDeleted => 1);
+                    $changes = 1;
+                } else {
+                    push @newFids, $fid;
+                }
+            }
+            if (@newFids) {
+                $binding->{features} = @newFids;
+                push @newRoles, $binding;
+                $checkSums{RoleParse::Checksum($binding->{role_id})} = 1;
+            }
+        }
+        if (! $changes) {
+            push @newSubs, $sub;
+            $stats->Add(subsystemUnchanged => 1);
+        } else {
+            # Try to find a matching variant.
+            my $subID = $sub->{name};
+            $subID =~ tr/_/ /;
+            my $variants = $variantMap->{$subID};
+            if (! $variants) {
+                print STDERR "Could not find $subID.\n"; ## TODO delete this
+                $stats->Add(subsystemNotFound => 1);
             } else {
-                print $oh ">$contig->[0]\n$contig->[2]\n";
-                push @$retVal, $contig;
-                $stats->Add(improveGoodContig => 1);
+                my $found;
+                for my $variant (@$variants) {
+                    my $missing = 1;
+                    for my $role (@$variant) {
+                        $missing &&= $checkSums{$role};
+                    }
+                    $found ||= ! $missing;
+                }
+                if ($found) {
+                    $stats->Add(subsystemUpdated => 1);
+                    push @newSubs, $sub;
+                } else {
+                    $stats->Add(subsystemDeleted => 1);
+                }
             }
         }
     }
-    return $retVal;
+    $gto->{subsystems} = \@newSubs;
+    # Delete the old quality data.
+    delete $gto->{quality};
 }
 
 
