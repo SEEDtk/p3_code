@@ -225,7 +225,7 @@ sub Improve {
         if ($workDir && -s "$workDir/$refGenome.json") {
             $refGeo = GEO->CreateFromGto("$workDir/$refGenome.json", %gOptions);
         } else {
-            my $gHash = GEO->CreateFromPatric($refGenome, %gOptions);
+            my $gHash = GEO->CreateFromPatric([$refGenome], %gOptions);
             $refGeo = $gHash->{$refGenome};
         }
         $geo->AddRefGenome($refGeo);
