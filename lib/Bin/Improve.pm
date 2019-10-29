@@ -27,6 +27,8 @@ package Bin::Improve;
     use P3DataAPI;
     use RoleParse;
 
+    # TODO load the ref-genome file
+
 =head1 Use Quality Information to Produce an Improved Bin
 
 This object operates on a L<Bin> object for which a FASTA file and a C<GenomeTypeObject> exists.  The latter must have come from
@@ -60,6 +62,10 @@ The minimum completeness for a genome to be eligible for improvement.
 =item variantMap
 
 Reference to a hash keyed on subsystem name.  Each subsystem maps to a list of lists, each sub-list containing a list of roles forming a subsystem variant possibility.
+
+=item refGenomes
+
+Reference to a hash keyed on taxonomic group ID that maps a taxon to its default reference genome.
 
 =back
 
@@ -105,6 +111,11 @@ C<roles.in.subsystems> in the P3 data directory.
 
 The C<variantMap.tbl> file containing the subsystem definitions. The default is C<variantMap.tbl> in the P3 data directory.
 
+=item refGenomes
+
+The C<refGenomes.tbl> file containing the reference genome for each taxonomic grouping.  The default is not to support
+lookup of reference genomes.
+
 =back
 
 =back
@@ -133,9 +144,20 @@ sub new {
         push @{$vMap{$sub}}, \@roles;
         $stats->Add(variantIn => 1);
     }
+    # If we are supporting lookup of reference genomes, load the file.
+    my %refMap;
+    if ($options{refGenomes}) {
+        open(my $rh, '<', $options{refGenomes}) || die "Could not open ref-genomes file: $!";
+        while (! eof $rh) {
+            my $line = <$rh>;
+            if ($line =~ /^(\d+)\t(\d+\.\d+)/) {
+                $refMap{$1} = $2;
+            }
+        }
+    }
     # Create the object.
     my $retVal = { workDir => $workDir, roleHashes => [$nMap, $cMap], stats => $stats, p3 => $p3, minComplete => $min,
-        variantMap => \%vMap };
+        variantMap => \%vMap, refGenomes => \%refMap };
     # Bless and return it.
     bless $retVal, $class;
     return $retVal;
@@ -358,7 +380,38 @@ sub TrimGto {
     delete $gto->{quality};
 }
 
+=head3 find_ref
 
+    my $refId = $improver->find_ref($gto);
+
+Return the ID of the reference genome for a specified L<GenomeTypeObject>, or C<undef> if none could be found.
+
+=over 4
+
+=item gto
+
+The L<GenomeTypeObject> containing the genome whose reference genome is desired.
+
+=item RETURN
+
+Returns the desired genome ID, or C<undef> if the genome could not be computed.
+
+=back
+
+=cut
+
+sub find_ref {
+    my ($self, $gto) = @_;
+    my $refMap = $self->{refGenomes};
+    my $lineage = $gto->{ncbi_lineage} || [];
+    my @taxIDs = map { $_->[1] } @$lineage;
+    my $retVal;
+    while (! $retVal && @taxIDs) {
+        my $taxID = pop @taxIDs;
+        $retVal = $refMap->{$taxID};
+    }
+    return $retVal;
+}
 1;
 
 

@@ -31,7 +31,7 @@ otherwise.
 The positional parameters are the ID of the reference genome, the file name of the input L<GenomeTypeObject>,
 and the output filename.  If the output filename is omitted, the input file will be overwritten with the
 new GTO.  The input GTO must have quality data in it. (This is always the case if it is the output of
-the annotation service.)
+the annotation service.)  If the reference genome ID is C<x>, then it is computed internally.
 
 Additional command-line options are as follows.
 
@@ -59,6 +59,11 @@ default is C<role.in.subsystems> in the P3 data directory.
 The C<variantMap.tbl> file containing the subsystem definitions.  The default is C<variantMap.tbl> in the
 P3 data directory.
 
+=item refGenomes
+
+The C<ref.genomes.tbl> file used to look up reference genomes.  The default is C<CheckG/ref.genomes.tbl> in the
+PATRIC data directory.  The file is only loaded if no reference genome is provided on the command line.
+
 =back
 
 =cut
@@ -75,7 +80,8 @@ my $opt = P3Utils::script_opts('refGenome gtoIn gtoOut',
     ['workDir|work|w=s', 'working directory', { default => '.' }],
     ['minComplete|min|m=i', 'minimum acceptable completeness', { default => 90 }],
     ['roleFile|roles|R=s', 'role definition file', { default => "$FIG_Config::p3data/roles.in.subsystems" }],
-    ['variantMap|subs|S=s', 'subsystem definition file', { default => "$FIG_Config::p3data/variantMap.tbl" }]
+    ['variantMap|subs|S=s', 'subsystem definition file', { default => "$FIG_Config::p3data/variantMap.tbl" }],
+    ['refGenomes|G=s', 'reference-genome lookup file', { default => "$FIG_Config::p3data/CheckG/ref.genomes.tbl" }],
     );
 my $stats = Stats->new();
 # Get access to PATRIC.
@@ -85,12 +91,11 @@ my $workDir = $opt->workdir;
 my $minComplete = $opt->mincomplete;
 my $roleFile = $opt->rolefile;
 my $variantMap = $opt->variantmap;
+my $refGenomes = $opt->refgenomes;
 # Get the positional parameters.
 my ($refGenome, $gtoIn, $gtoOut) = @ARGV;
 if (! $refGenome) {
     die "No reference genome specified.";
-} elsif (! ($refGenome =~ /^\d+\.\d+$/)) {
-    die "Invalid reference genome ID $refGenome.";
 } elsif (! $gtoIn) {
     die "Missing input GTO.";
 } elsif (! -s $gtoIn) {
@@ -98,10 +103,14 @@ if (! $refGenome) {
 } elsif (! $gtoOut) {
     $gtoOut = $gtoIn;
 }
+if ($refGenome =~ /^\d+\.\d+$/) {
+    # Here we know the reference genome ID.
+    $refGenomes = undef;
+}
 # Create the improver.
 print STDERR "Working directory is $workDir with role file $roleFile.\n";
 my $improver = Bin::Improve->new($workDir, p3 => $p3, stats => $stats, minComplete => $minComplete,
-        roleFile => $roleFile, variantMap => $variantMap);
+        roleFile => $roleFile, variantMap => $variantMap, refGenomes => $refGenomes);
 # This will be the output value.
 my $retVal = '0';
 # Read the input GTO.
@@ -110,6 +119,12 @@ my $gto = GenomeTypeObject->create_from_file($gtoIn);
 if (! $improver->eligible($gto)) {
     print STDERR "Genome not eligible for improvement.\n";
 } else {
+    # Get the reference genome ID.
+    if ($refGenome eq 'x') {
+        $refGenome = $improver->find_ref($gto);
+        die "Could not compute reference genome." if ! $refGenome;
+        print STDERR "Reference genome is $refGenome.\n";
+    }
     print STDERR "Processing genome for improvement.\n";
     my $ok = $improver->Improve([$refGenome], $gto);
     if (! $ok) {
