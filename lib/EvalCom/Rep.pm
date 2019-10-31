@@ -15,6 +15,7 @@
 # http://www.theseed.org/LICENSE.TXT.
 #
 
+## TODO test using roles.unified for roles.in.subsystems
 
 package EvalCom::Rep;
 
@@ -29,12 +30,12 @@ package EvalCom::Rep;
 This is a subclass of L<EvalCom> that classifies genomes according to their closest representative genome rather than their taxonomic
 grouping.  The theory is that this will reduce errors due to incorrect taxonomic classification and genome distribution bias.
 
-As a fallback, the universal role tables for Archaea and Bacteria are used from the taxonomic analysis if no close representative
-can be found.
+As a fallback, there is a universal role table for all genomes.
 
-The input files are found in the working directory (usually C<CheckR> in the SEEDtk global directory).  C<backup.tbl> contains the
-universal roles for the Bacteria and Archaea domains.  C<weighted.tbl> contains the universal roles for each representative genome
-group.
+The input files are found in the working directory (usually C<CheckR> in the SEEDtk global directory).  C<comp.tbl> contains
+the universal roles for each representative genome group, including the backup.  For each group, the header line will contain
+the group ID, the minimum similarity score for group membership, the group name, and the seed protein sequence.  Each data
+line will contain a role ID.  The trailer line will be two slashes (C<//>).
 
 The goal of this object is to, given a GEO, find the appropriate universal-role hash to use for computing completeness and
 contamination.  A universal-role hash maps role IDs to weights (see L<EvalCom>).
@@ -42,14 +43,6 @@ contamination.  A universal-role hash maps role IDs to weights (see L<EvalCom>).
 The object contains the following fields.
 
 =over 4
-
-=item domains
-
-A hash mapping top-level domain taxon IDs to universal role hashes.
-
-=item dNames
-
-A hash mapping top-level domain taxon IDs to domain names.
 
 =item repObjects
 
@@ -81,7 +74,7 @@ Create a new consistency/completeness checker from the specified input directory
 
 =item inputDir
 
-The input directory containing the C<weighted.tbl> and C<backup.tbl> files.
+The input directory containing the C<comp.tbl> file.
 
 =item options
 
@@ -91,7 +84,7 @@ A hash containing zero or more of the following keys.
 
 =item K
 
-The kmer length for the similarity checks.
+The kmer length for the similarity checks.  The default is C<8>.
 
 =item logH
 
@@ -116,34 +109,24 @@ sub new {
     # Get the kmer size.
     my $K = $options{K} // 8;
     $retVal->{K} = $K;
-    # Create the domain hashes.
-    my (%domains, %dNames);
-    my $groupCount = 0;
-    open(my $ih, '<', "$inputDir/backup.tbl") || die "Could not open backup.tbl: $!";
-    while (! eof $ih) {
-        # Read the header line.
-        my ($id, $name) = ScriptUtils::get_line($ih);
-        $dNames{$id} = $name;
-        $domains{$id} = $retVal->read_weights($ih);
-        $stats->Add(domainGroupIn => 1);
-        $groupCount++;
-    }
-    close $ih; undef $ih;
-    $retVal->{dNames} = \%dNames;
-    $retVal->{domains} = \%domains;
-    $retVal->Log("$groupCount taxonomic groups read.\n");
     # Read the representative-genome hashes.
     my (%repObjects, %repRoles, %repScores);
-    open($ih, '<', "$inputDir/weighted.tbl") || die "Could not open weighted.tbl: $!";
-    $groupCount = 0;
+    open(my $ih, '<', "$inputDir/weighted.tbl") || die "Could not open weighted.tbl: $!";
+    my $groupCount = 0;
     while (! eof $ih) {
         # Read the header line.
-        my ($id, $name, $prot, $score) = ScriptUtils::get_line($ih);
+        my ($id, $score, $name, $prot) = ScriptUtils::get_line($ih);
         $repObjects{$id} = RepGenome->new($id, name => $name, prot => $prot);
         $repScores{$id} = $score;
         $stats->Add("group${score}In" => 1);
         # Read the universal role hash.
-        $repRoles{$id} = $retVal->read_weights($ih);
+        my $line = <$ih>;
+        my %weights;
+        while (substr($line, 0, 2) ne '//') {
+            $line =~ s/\s+//g;
+            $weights{$line} = 1.0;
+        }
+        $repRoles{$id} = \%weights;
         $groupCount++;
     }
     $retVal->Log("$groupCount representative-genome groups read.\n");
@@ -189,23 +172,8 @@ sub Choose {
     my $roleHash;
     # Get the statistics object.
     my $stats = $self->{stats};
-    # Get the domain hash.
-    my $roleLists = $self->{domains};
-    # Compute the domain taxonomic group for this GEO.  This is our backup.
-    my $lineage = $geo->lineage || [];
-    my @taxons = @$lineage;
-    while (! $repGroup && @taxons) {
-        my $domain = shift @taxons;
-        if ($roleLists->{$domain}) {
-            $repGroup = $self->{dNames}{$domain};
-            $roleHash = $roleLists->{$domain};
-        }
-    }
-    if (! $repGroup) {
-        $self->Log($geo->id . " is not prokaryotic.\n");
-        $stats->Add(noBackupGroup => 1);
-    }
-    # Now we do the representative-genome search.  Get the seed protein.
+    # Now we do the representative-genome search.  Everything matches the fall-back group, which is last in the list.
+    # Get the seed protein.
     my $prot = $geo->seed;
     # Get the hashes.
     my $repScores = $self->{repScores};
