@@ -111,7 +111,7 @@ sub new {
     $retVal->{K} = $K;
     # Read the representative-genome hashes.
     my (%repObjects, %repRoles, %repScores);
-    open(my $ih, '<', "$inputDir/weighted.tbl") || die "Could not open weighted.tbl: $!";
+    open(my $ih, '<', "$inputDir/comp.tbl") || die "Could not open comp.tbl: $!";
     my $groupCount = 0;
     while (! eof $ih) {
         # Read the header line.
@@ -125,6 +125,7 @@ sub new {
         while (substr($line, 0, 2) ne '//') {
             $line =~ s/\s+//g;
             $weights{$line} = 1.0;
+            $line = <$ih>;
         }
         $repRoles{$id} = \%weights;
         $groupCount++;
@@ -187,7 +188,13 @@ sub Choose {
         if ($score > $bestScore && $score >= $repScores->{$group}) {
             $repGroup = $repObjects->{$group}->name;
             $roleHash = $repRoles->{$group};
+            $bestScore = $score;
         }
+    }
+    # Fall back to the last group.
+    if ($bestScore == 0) {
+        $repGroup = $repObjects->{0}->name;
+        $roleHash = $repRoles->{0};
     }
     return ($repGroup, $roleHash);
 }
