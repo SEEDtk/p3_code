@@ -15,8 +15,6 @@
 # http://www.theseed.org/LICENSE.TXT.
 #
 
-## TODO test using roles.unified for roles.in.subsystems
-
 package EvalCom::Rep;
 
     use strict;
