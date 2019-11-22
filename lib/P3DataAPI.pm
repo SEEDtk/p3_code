@@ -3012,7 +3012,8 @@ sub gto_of {
                           "alt_locus_tag", "refseq_locus_tag",
                           "protein_id",    "gene_id",
                           "gi",            "gene",
-                          "uniprotkb_accession", "genome_id"
+                          "uniprotkb_accession", "genome_id",
+                          "pgfam_id", "plfam_id",
                           ]
                         );
 
@@ -3050,7 +3051,10 @@ sub gto_of {
             }
             my @familyList;
             if ($f->{pgfam_id}) {
-                @familyList = (['PGF', $f->{pgfam_id}]);
+                push @familyList, ['PGFAM', $f->{pgfam_id}];
+            }
+            if ($f->{plfam_id}) {
+                push @familyList, ['PLFAM', $f->{plfam_id}];
             }
             $retVal->add_feature(
                              {
