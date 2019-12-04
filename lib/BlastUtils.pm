@@ -239,9 +239,17 @@ maximum E-value [Default = 0.01]
 
 maximum number of returned HSPs (before filtering)
 
+=item maxHitsPerQuery
+
+maximum number of hits to return for each query sequence (before filtering)
+
 =item maxIntronLength
 
 maximum intron length in joining translated alignments
+
+=item maxTargetSeqs
+
+maximum number of hits to return for each query sequence (before filtering)
 
 =item minCovQ
 
@@ -1879,6 +1887,7 @@ sub form_blast_command
     my $searchSp         = $parms->{ searchSp }         || $parms->{ searchsp };
     my $bestHitOverhang  = $parms->{ bestHitOverhang }  || $parms->{ best_hit_overhang };
     my $bestHitScoreEdge = $parms->{ bestHitScoreEdge } || $parms->{ best_hit_score_edge };
+    my $maxHitsPerQuery  = $parms->{ maxTargetSeqs } || $parms->{ maxHitsPerQuery };
 
     my $wordSz           = $parms->{ wordSz }           || $parms->{ wordSize }         || $parms->{ word_size };
     my $matrix           = $parms->{ matrix };
@@ -1952,7 +1961,7 @@ sub form_blast_command
     push @cmd, -num_threads         => $threads           if $threads;
 
     push @cmd, -db                  => $dbF;
-    push @cmd, -db_gen_code         => $dbCode            if $dbCode;
+    push @cmd, -db_gencode          => $dbCode            if $dbCode;
     push @cmd, -gilist              => $giList            if $giList;
 
     push @cmd, -query               => $queryF;
@@ -1986,6 +1995,7 @@ sub form_blast_command
     push @cmd, -use_sw_tback        => ()                 if $useSwTback;
     push @cmd, -ungapped            => ()                 if $ungapped;
     push @cmd, -max_intron_length   => $maxIntronLength   if $maxIntronLength;
+    push @cmd, -max_target_seqs		=> $maxHitsPerQuery	  if $maxHitsPerQuery;
 
     push @cmd, '-show_gis'          => ()                 if $showGIs;
 

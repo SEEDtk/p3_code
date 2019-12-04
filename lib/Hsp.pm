@@ -94,6 +94,20 @@ sub new {
     bless $self, $class;
 }
 
+=head3 dummy
+
+    my $hsp = Hsp->dummy();
+
+Return an empty, dummy Hsp.
+
+=cut
+
+sub dummy {
+    my ($class) = @_;
+    my $self = ['', '', 0, '', '', 0, 0, 1, 0, 0, 0, 0, 0, 0, '+', 0, 0, '', 0, 0, ''];
+    bless $self, $class;
+}
+
 =head3 qid
 
     my $qid = $hsp->qid
