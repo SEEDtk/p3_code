@@ -2929,7 +2929,7 @@ sub gto_of {
             "select",      "genome_id",
             "genome_name", "genome_status",
             "taxon_id",    "taxon_lineage_names",
-            "taxon_lineage_ids"
+            "taxon_lineage_ids", "gc_content"
         ],
     );
 
@@ -2966,7 +2966,8 @@ sub gto_of {
                           ncbi_taxonomy_id => $g->{taxon_id},
                           taxonomy         => $g->{taxon_lineage_names},
                           domain           => $domain,
-                          genetic_code     => $genetic_code
+                          genetic_code     => $genetic_code,
+                          gc_content	   => $g->{gc_content},
                           }
                          );
 

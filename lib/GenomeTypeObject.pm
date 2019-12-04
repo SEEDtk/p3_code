@@ -350,7 +350,7 @@ sub set_metadata
 {
     my($self, $meta) = @_;
 
-    my @keys = qw(id scientific_name domain genetic_code source source_id taxonomy ncbi_taxonomy_id owner);
+    my @keys = qw(id scientific_name domain genetic_code source source_id taxonomy ncbi_taxonomy_id owner gc_content);
     for my $k (@keys)
     {
         if (exists($meta->{$k}))
@@ -937,7 +937,7 @@ Write the protein translations to a FASTA file.
 
 sub write_protein_translations_to_file
 {
-    my($self, $filename) = @_;
+    my($self, $filename, $include_function) = @_;
 
     my $fh;
     open($fh, ">", $filename) or die "Cannot write $filename: $!";
@@ -947,7 +947,11 @@ sub write_protein_translations_to_file
         my $trans = $feature->{protein_translation};
         if ($trans)
         {
-            write_fasta($fh, [$feature->{id}, undef, $trans]);
+            my $product = '';
+            if ($feature->{function} && $include_function) {
+                $product = $feature->{function};
+            }
+            write_fasta($fh, [$feature->{id}, $product, $trans]);
         }
     }
     close($fh);
