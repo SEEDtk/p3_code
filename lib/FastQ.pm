@@ -59,17 +59,25 @@ Right quality string.
 
 ID of the current node.
 
+=item singleton
+
+If TRUE, this is a singleton file, so there are no right reads.
+
+=item q_base
+
+C<33> for normal fastQ, C<64> for old Illumina format.  This is the base value for the quality strings.
+
 =back
 
 =head2 Special Methods
 
 =head3 new
 
-    my $fqhandle = FastQ->new($left, $right);
+    my $fqhandle = FastQ->new($left, $right, $options);
 
 or
 
-    my $fqhandle = FastQ->new($interlaced);
+    my $fqhandle = FastQ->new($interlaced, $options);
 
 Construct a new FASTQ handler using a matched pair of files or a single interlaced file. The handler may be used to retrieve matched pairs
 of reads from the file.
@@ -88,17 +96,40 @@ Name of the file containing the right-end reads, or an open file handle for it.
 
 Name of the file containing the interlaced reads, or an open file handle for it.
 
+=item options (optional)
+
+If specified, a reference to a hash containing zero or more of the following options.
+
+=over 8
+
+=item old_illumina
+
+If specified, the quality strings use old Illumina scoring.
+
+=item singleton
+
+If specified, the incoming file is a singleton file with no right strings.
+
 =back
 
 =cut
 
 sub new {
-    my ($class, $left, $right) = @_;
+    my ($class, $left, $right, $options) = @_;
+    # Adjust for the possibility of options.
+    if (ref $right eq 'HASH') {
+        $options = $right;
+        $right = undef;
+    } elsif (! $options) {
+        $options = {};
+    }
     # This will be the new object. It starts blank.
     my $retVal = {
         left => '',  right => '',
         lqual => '', rqual => '',
-        id => undef
+        id => undef,
+        singleton => $options->{singleton},
+        q_base => ($options->{old_illumina} ? 64 : 33)
     };
     # Store the handle for the left file.
     my $lh;
@@ -107,9 +138,8 @@ sub new {
     } else {
         open($lh, "<$left") || die "Could not open FASTQ file $left: $!";
     }
-
     $retVal->{lh} = $lh;
-    # Store the handle for the right file if we are not interlaced.
+    # Store the handle for the right file if we are not interlaced or singleton.
     if ($right) {
         my $rh;
         if (ref($right) =~ /^(?:GLOB|IO::)/) {
@@ -219,18 +249,22 @@ sub next {
     if (! eof $lh) {
         # Read the left record.
         my $leftID = $self->_read_fastq($lh, 'left');
-        # Determine from where we will get the right record. If there is no right
-        # file, it will be the left file (interlaced mode).
-        my $rightID = '';
-        $rh //= $lh;
-        if (! eof $rh) {
-            # Read the right record.
-            $rightID = $self->_read_fastq($rh, 'right');
+        if ($self->{singleton}) {
             $retVal = 1;
-        }
-        # Insure we have valid data.
-        if ($leftID ne $rightID) {
-            die "Unpaired data in FASTQ files.\n";
+        } else {
+            # Determine from where we will get the right record. If there is no right
+            # file, it will be the left file (interlaced mode).
+            my $rightID = '';
+            $rh //= $lh;
+            if (! eof $rh) {
+                # Read the right record.
+                $rightID = $self->_read_fastq($rh, 'right');
+                $retVal = 1;
+            }
+            # Insure we have valid data.
+            if ($leftID ne $rightID) {
+                die "Unpaired data in FASTQ files.\n";
+            }
         }
     }
     # Return the success indication.
@@ -248,6 +282,8 @@ Open output files with the given name. The file name should not have an extensio
 =item fileName
 
 The name to give to the output files, without an extension.  The extensions C<_1.fq> and C<_2.fq> will be appended.
+
+=back
 
 =cut
 
@@ -300,9 +336,10 @@ An open file handle onto which the current record's sequences should be written.
 sub Write {
     my ($self, $oh) = @_;
     my $id = $self->id;
-    print $oh join("\n", "\@$id/1", $self->left, "+$id/1", $self->lqual,
-                         "\@$id/2", $self->right, "+$id/2", $self->rqual,
-                         "");
+    print $oh join("\n", "\@$id/1", $self->left, "+$id/1", $self->lqual, "");
+    if (! $self->{singleton}) {
+        print $oh join("\n", "\@$id/2", $self->right, "+$id/2", $self->rqual, "");
+    }
 }
 
 =head3 WriteL
@@ -391,6 +428,19 @@ sub lqual {
     return $self->{lqual};
 }
 
+=head3 lq_mean
+
+    my $qNum = $fqhandle->lq_mean;
+
+Return the mean quality of the left string.
+
+=cut
+
+sub lq_mean {
+    my ($self) = @_;
+    return $self->_qual_mean($self->{lqual});
+}
+
 =head3 right
 
     my $dna = $fqhandle->right;
@@ -417,6 +467,19 @@ sub rqual {
     return $self->{rqual};
 }
 
+=head3 rq_mean
+
+    my $qNum = $fqhandle->rq_mean;
+
+Return the mean quality of the right string.
+
+=cut
+
+sub rq_mean {
+    my ($self) = @_;
+    return $self->_qual_mean($self->{rqual});
+}
+
 =head3 seqs
 
     my @seqs = $fqhandle->seqs;
@@ -430,8 +493,46 @@ sub seqs {
     return ($self->{left}, $self->{right});
 }
 
+=head3 lqual_mean
+
 
 =head2 Internal Utilities
+
+=head3 _qual_mean
+
+    my $pct = $fqhandle->_qual_mean($qualString);
+
+Compute the mean quality from a quality string.
+
+=over 4
+
+=item qualString
+
+The quality string for a sequence.
+
+=item RETURN
+
+Returns a fraction from 0 to 1 indicating the mean quality.
+
+=back
+
+=cut
+
+use constant QBASE => 0x20;
+
+sub _qual_mean {
+    my ($self, $qualString) = @_;
+    my $base = $self->{q_base};
+    my $n = length $qualString;
+    my $total = 0;
+    for (my $i = 0; $i < $n; $i++) {
+        my $q = ord(substr($qualString, $i, 1)) - $base;
+        $q = 40 if $q > 40;
+        $total += $q;
+    }
+    my $retVal = $total / ($n * 40);
+    return $retVal;
+}
 
 =head3 _read_fastq
 
