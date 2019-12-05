@@ -27,8 +27,6 @@ package Bin::Improve;
     use P3DataAPI;
     use RoleParse;
 
-    # TODO load the ref-genome file
-
 =head1 Use Quality Information to Produce an Improved Bin
 
 This object operates on a L<Bin> object for which a FASTA file and a C<GenomeTypeObject> exists.  The latter must have come from
@@ -355,7 +353,6 @@ sub TrimGto {
             $subID =~ tr/_/ /;
             my $variants = $variantMap->{$subID};
             if (! $variants) {
-                print STDERR "Could not find $subID.\n"; ## TODO delete this
                 $stats->Add(subsystemNotFound => 1);
             } else {
                 my $found;
