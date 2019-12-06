@@ -67,6 +67,10 @@ If TRUE, this is a singleton file, so there are no right reads.
 
 C<33> for normal fastQ, C<64> for old Illumina format.  This is the base value for the quality strings.
 
+=item unsafe
+
+If defined, reference to a list of saved records resulting from unpaired data.
+
 =back
 
 =head2 Special Methods
@@ -127,11 +131,17 @@ sub new {
     } elsif (! $options) {
         $options = {};
     }
+    # If we are allowing unsafe reading, we need to set up a buffering queue.
+    my $unsafe;
+    if ($options->{unsafe}) {
+        $unsafe = [];
+    }
     # This will be the new object. It starts blank.
     my $retVal = {
         left => '',  right => '',
         lqual => '', rqual => '',
         id => undef,
+        unsafe => $unsafe,
         singleton => $options->{singleton},
         q_base => ($options->{old_illumina} ? 64 : 33)
     };
@@ -249,24 +259,42 @@ sub next {
     my $retVal;
     # Get the file handles.
     my ($lh, $rh) = ($self->{lh}, $self->{rh});
-    # Check for end-of-file.
-    if (! eof $lh) {
-        # Read the left record.
-        my $leftID = $self->_read_fastq($lh, 'left');
-        if ($self->{singleton}) {
+    # This will hold the left ID.
+    my $leftID;
+    # Check for buffering.
+    my $bufferedL = $self->{unsafe};
+    if ($bufferedL && scalar @$bufferedL) {
+        # We have a buffered record.
+        ($self->{id}, $self->{left}, $self->{lqual}) = @$bufferedL;
+        $leftID = $self->{id};
+        $self->{unsafe} = [];
+    } else {
+        # Check for end-of-file.
+        if (! eof $lh) {
+            # Read the left record.
+            $leftID = $self->_read_fastq($lh, 'left');
+        }
+    }
+    if ($self->{singleton}) {
+        $retVal = 1;
+    } else {
+        # Determine from where we will get the right record. If there is no right
+        # file, it will be the left file (interlaced mode).
+        my $rightID = '';
+        $rh //= $lh;
+        if (! eof $rh) {
+            # Read the right record.
+            $rightID = $self->_read_fastq($rh, 'right');
             $retVal = 1;
-        } else {
-            # Determine from where we will get the right record. If there is no right
-            # file, it will be the left file (interlaced mode).
-            my $rightID = '';
-            $rh //= $lh;
-            if (! eof $rh) {
-                # Read the right record.
-                $rightID = $self->_read_fastq($rh, 'right');
-                $retVal = 1;
-            }
-            # Insure we have valid data.
-            if ($leftID ne $rightID) {
+        }
+        # Insure we have valid data.
+        if ($leftID ne $rightID) {
+            if ($bufferedL) {
+                # Here we are unsafe.  Simulate an empty right side and save the new left.
+                $self->{unsafe} = [$rightID, $self->{right}, $self->{rqual}];
+                $self->{right} = '';
+                $self->{rqual} = '';
+            } else {
                 die "Unpaired data in FASTQ files: $leftID vs $rightID.\n";
             }
         }
