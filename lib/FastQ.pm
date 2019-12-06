@@ -260,7 +260,7 @@ sub next {
     # Get the file handles.
     my ($lh, $rh) = ($self->{lh}, $self->{rh});
     # This will hold the left ID.
-    my $leftID;
+    my $leftID = '';
     # Check for buffering.
     my $bufferedL = $self->{unsafe};
     if ($bufferedL && scalar @$bufferedL) {
@@ -276,7 +276,7 @@ sub next {
         }
     }
     if ($self->{singleton}) {
-        $retVal = 1;
+        $retVal = ($leftID ? 1 : 0);
     } else {
         # Determine from where we will get the right record. If there is no right
         # file, it will be the left file (interlaced mode).
@@ -288,7 +288,7 @@ sub next {
             $retVal = 1;
         }
         # Insure we have valid data.
-        if ($leftID ne $rightID) {
+        if ($retVal && $leftID ne $rightID) {
             if ($bufferedL) {
                 # Here we are unsafe.  Simulate an empty right side and save the new left.
                 $self->{unsafe} = [$rightID, $self->{right}, $self->{rqual}];
@@ -556,13 +556,16 @@ sub _qual_mean {
     my ($self, $qualString) = @_;
     my $base = $self->{q_base};
     my $n = length $qualString;
-    my $total = 0;
-    for (my $i = 0; $i < $n; $i++) {
-        my $q = ord(substr($qualString, $i, 1)) - $base;
-        $q = 40 if $q > 40;
-        $total += $q;
+    my $retVal = 0;
+    if ($n > 0) {
+        my $total = 0;
+        for (my $i = 0; $i < $n; $i++) {
+            my $q = ord(substr($qualString, $i, 1)) - $base;
+            $q = 40 if $q > 40;
+            $total += $q;
+        }
+        $retVal = $total / ($n * 40);
     }
-    my $retVal = $total / ($n * 40);
     return $retVal;
 }
 
