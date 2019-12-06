@@ -133,7 +133,7 @@ sub new {
     }
     # If we are allowing unsafe reading, we need to set up a buffering queue.
     my $unsafe;
-    if ($options->{unsafe}) {
+    if ($options->{unsafe} && ! $right) {
         $unsafe = [];
     }
     # This will be the new object. It starts blank.
