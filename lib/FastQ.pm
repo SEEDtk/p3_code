@@ -110,6 +110,10 @@ If specified, the quality strings use old Illumina scoring.
 
 If specified, the incoming file is a singleton file with no right strings.
 
+=item unsafe
+
+If specified, errors in the incoming file will be skipped.
+
 =back
 
 =cut
@@ -263,7 +267,7 @@ sub next {
             }
             # Insure we have valid data.
             if ($leftID ne $rightID) {
-                die "Unpaired data in FASTQ files.\n";
+                die "Unpaired data in FASTQ files: $leftID vs $rightID.\n";
             }
         }
     }
