@@ -30,7 +30,7 @@ which performs the same service for L<FastA> objects.
 
 =head3 new
 
-    my $oh = FastQ::Out->new($fileName);
+    my $oh = FastQ::Out->new($fileName, %options);
 
 Create FASTA paired output files with the given file name. The extensions C<_1.fastq> and C<_2.fastq> will be appended.
 
@@ -40,8 +40,6 @@ Create FASTA paired output files with the given file name. The extensions C<_1.f
 
 The name to give to the output file, without the filename extensions.
 
-=back
-
 =cut
 
 sub new {
@@ -50,7 +48,7 @@ sub new {
     open(my $oh1, ">${fileName}_1.fastq") || die "Could not open $fileName left fastq: $!";
     open(my $oh2, ">${fileName}_2.fastq") || die "Could not open $fileName right fastq: $!";
     # Create the object.
-    my $retVal = { lh => $oh1, rh => $oh2 };
+    my $retVal = { lh => $oh1, rh => $oh2, sh => undef, fileName => $fileName };
     bless $retVal, $class;
     # Return it.
     return $retVal;
@@ -76,8 +74,19 @@ A L<FastQ> object currently positioned on a sequence.
 
 sub Write {
     my ($self, $fq) = @_;
-    $fq->WriteL($self->{lh});
-    $fq->WriteR($self->{rh});
+    if ($fq->right) {
+        # Here we have both a left and a right sequence.
+        $fq->WriteL($self->{lh});
+        $fq->WriteR($self->{rh});
+    } else {
+        # Here we have a singleton.
+        if (! $self->{sh}) {
+            # This is our first singleton, so open the file.
+            open(my $sh, '>', "$self->{fileName}_s.fastq") || die "Could not open singleton file: $!";
+            $self->{sh} = $sh;
+        }
+        $fq->WriteL($self->{sh});
+    }
 }
 
 =head3 Close
@@ -92,6 +101,9 @@ sub Close {
     my ($self) = @_;
     close $self->{lh};
     close $self->{rh};
+    if ($self->{sh}) {
+        close $self->{sh};
+    }
 }
 
 1;

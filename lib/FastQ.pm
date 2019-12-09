@@ -349,6 +349,60 @@ sub Echo {
     print $oh ">$id/2\n$self->{right}\n";
 }
 
+=head3 Save
+
+    $fqhandle->Save(\@saveList);
+
+Save the current record to a list.
+
+=over 4
+
+=item saveList
+
+Reference to a list to contain saved FASTQ records.
+
+=back
+
+=cut
+
+sub Save {
+    my ($self, $saveList) = @_;
+    my %saveRec = map { $_ => $self->{$_} } qw(id left right lqual rqual);
+    push @$saveList, \%saveRec;
+}
+
+=head3 Load
+
+    my $id = $fqhandle->Load(\@saveList);
+
+Load a new current record from a list and return its ID.
+
+=over 4
+
+=item saveList
+
+Reference to a list containing saved FASTQ records.  The last record will be popped off.
+
+=item RETURN
+
+Returns the ID of the record loaded.
+
+=back
+
+=cut
+
+sub Load {
+    my ($self, $saveList) = @_;
+    my $retVal;
+    my $rec = pop @$saveList;
+    if ($rec) {
+        for my $key (qw(id left right lqual rqual)) {
+            $self->{$key} = $$rec->{$key};
+        }
+    }
+    return $retVal;
+}
+
 =head3 Write
 
     $fqhandle->Write($oh);
