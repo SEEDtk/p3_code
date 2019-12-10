@@ -393,14 +393,13 @@ Returns the ID of the record loaded.
 
 sub Load {
     my ($self, $saveList) = @_;
-    my $retVal;
     my $rec = pop @$saveList;
     if ($rec) {
         for my $key (qw(id left right lqual rqual)) {
-            $self->{$key} = $$rec->{$key};
+            $self->{$key} = $rec->{$key};
         }
     }
-    return $retVal;
+    return $self->{id};
 }
 
 =head3 Write
