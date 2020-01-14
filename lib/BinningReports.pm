@@ -790,7 +790,7 @@ sub copy_geo {
     $gThing{contigs} = $geo->contigCount;
     ($gThing{over_roles}, $gThing{under_roles}, $gThing{pred_roles}, $gThing{comp_roles}) = $geo->roleStats;
     # Store the role counts and ratios.
-    $gThing{tot_funs} = $geo->pegCount;
+    $gThing{tot_funs} = $geo->pegCount - $geo->hypoCount;
     $gThing{tot_hypos} = $geo->hypoCount;
     $gThing{tot_roles} = $geo->roleCount;
     $gThing{cds_pct} = Math::Round::nearest(0.01, $geo->cdsPercent);

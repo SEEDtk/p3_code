@@ -79,11 +79,9 @@ Seed protein sequence for the genome in question, if it has one.
 
 Genetic code for the genome.
 
-=back
+=item contigCount
 
-The following fields are usually passed in by the client.
-
-=over 4
+The number of contigs in the genome.
 
 =item roleCount
 
@@ -95,7 +93,7 @@ The total number of hypothetical protein-encoding genes found in the genome.
 
 =item pegCount
 
-The total number of non-hypothetical protein-encoding genes found in the genome.
+The total number of protein-encoding genes found in the genome.
 
 =item cdsPercent
 
@@ -108,6 +106,12 @@ The percent of features that are hypothetical.
 =item plfamPercent
 
 The percent of features that belong to local protein families.
+
+=back
+
+The following fields are usually passed in by the client.
+
+=over 4
 
 =item nameMap
 
@@ -322,9 +326,9 @@ sub CreateFromPatric {
     # Check for modification files.
     my %modFiles;
     if ($options{modDir}) {
-    	my $modDir = $options{modDir};
-    	opendir(my $dh, $modDir) || die "Could not open modification directory $modDir: $!";
-    	%modFiles = map { $_ => "$modDir/$_" } grep { $_ =~ /^\d+\.\d+$/ } readdir $dh;
+        my $modDir = $options{modDir};
+        opendir(my $dh, $modDir) || die "Could not open modification directory $modDir: $!";
+        %modFiles = map { $_ => "$modDir/$_" } grep { $_ =~ /^\d+\.\d+$/ } readdir $dh;
     }
     # Compute the feature columns for the current mode.
     my @fCols = qw(patric_id product aa_length);
@@ -340,7 +344,7 @@ sub CreateFromPatric {
     _log($logH, "Requesting $gCount genomes from PATRIC.\n");
     my $genomeTuples = P3Utils::get_data_keyed($p3, genome => [], ['genome_id', 'genome_name',
             'kingdom', 'taxon_id', 'taxon_lineage_ids', 'cds_ratio', 'hypothetical_cds_ratio',
-            'plfam_cds_ratio'], $genomes);
+            'plfam_cds_ratio', 'plfam_cds', 'contigs'], $genomes);
     # Now we retrieve the seed proteins.
     my %protHash;
     my $protTuples = P3Utils::get_data_keyed($p3, feature => [['eq', 'product', 'Phenylalanyl-tRNA synthetase alpha chain']],
@@ -361,14 +365,15 @@ sub CreateFromPatric {
     # Loop through the genomes found.  We need to keep the tax IDs for finding the genetic code.
     my %taxes;
     for my $genomeTuple (@$genomeTuples) {
-        my ($genome, $name, $domain, $taxon, $lineage, $cdsRatio, $hypoRatio, $plfamRatio) = @$genomeTuple;
+        my ($genome, $name, $domain, $taxon, $lineage, $cdsRatio, $hypoRatio, $plfamRatio, $plfamCount, $contigCount) = @$genomeTuple;
         push @{$taxes{$taxon}}, $genome;
         my $cdsPercent = ($cdsRatio ? $cdsRatio * 100 : '');
         my $hypoPercent = ($hypoRatio ? $hypoRatio * 100 : '');
         my $plfamPercent = ($plfamRatio ? $plfamRatio * 100 : '');
         $retVal{$genome} = { id => $genome, name => $name, domain => $domain, nameMap => $nMap, checkMap => $cMap,
             taxon => $taxon, lineage => ($lineage || []), binFlag => 0, seed => $protHash{$genome}, gc => 11,
-            cdsPercent => $cdsPercent, hypoPercent => $hypoPercent, plfamPercent => $plfamPercent};
+            cdsPercent => $cdsPercent, hypoPercent => $hypoPercent, plfamPercent => $plfamPercent,
+            contigCount => $contigCount, plfamCount => $plfamCount};
         $stats->Add(genomeFoundPatric => 1);
         # Compute the aa-len limits for the seed protein.
         my ($min, $max) = (209, 405);
@@ -385,7 +390,7 @@ sub CreateFromPatric {
         # If there is a modification file, read the modifications.
         my $realFuns = {};
         if ($modFiles{$genome}) {
-        	$realFuns = _ReadModifications($modFiles{$genome});
+            $realFuns = _ReadModifications($modFiles{$genome});
         }
         # These are used to count the pegs and roles.
         my %ckHash;
@@ -397,15 +402,14 @@ sub CreateFromPatric {
             # Note that some of these will be undef if we are at a low detail level.
             my ($fid, $function, $aaLen, $contig, $start, $len, $dir, $prot) = @$featureTuple;
             if ($realFuns->{$fid}) {
-            	$function = $realFuns->{$fid};
-            	$stats->add(functionModified => 1);
+                $function = $realFuns->{$fid};
+                $stats->add(functionModified => 1);
             }
             if ($fid =~ /\.peg\./) {
                 if (SeedUtils::hypo($function)) {
                     $hypoCount++;
-                } else {
-                    $pegCount++;
                 }
+                $pegCount++;
             }
             # Only features with functions matter to us.
             if ($function) {
@@ -711,6 +715,33 @@ sub CreateFromGtoFiles {
 sub MIN_CHECKM { return 80; }
 sub MIN_SCIKIT { return 87; }
 sub MAX_CONTAM { return 10; }
+sub MAX_HYPO   { return 70; }
+
+=head3 hypoX
+
+    my $ok = GTO::hypoX($pct);
+
+Return TRUE if the specified percent hypothetical is correct.
+
+=over 4
+
+=item pct
+
+A percent hypothetical proteins.
+
+=item RETURN
+
+Returns TRUE if the value is low enough, else FALSE.
+
+=back
+
+=cut
+
+sub hypoX {
+    my ($pct) = @_;
+    return ($pct <= MAX_HYPO);
+}
+
 
 =head3 completeX
 
@@ -789,7 +820,7 @@ sub contamX {
 
 =head3 qscoreX
 
-    my $score = GEO::qscoreX($coarse, $fine, $complete, $contam);
+    my $score = GEO::qscoreX($coarse, $fine, $complete, $contam, $hypo, $contigs);
 
 Return the overall quality score from the basic quality metrics-- coarse consistency, fine consistency, completeness, and contamination.
 
@@ -811,6 +842,14 @@ The percent completeness.
 
 The percent contamination.
 
+=item hypo
+
+The percent hypothetical proteins.
+
+=item contigs
+
+The number of contigs.
+
 =item RETURN
 
 Returns a number from -500 to 209 indicating the relative quality of the genome.
@@ -820,8 +859,8 @@ Returns a number from -500 to 209 indicating the relative quality of the genome.
 =cut
 
 sub qscoreX {
-    my ($coarse, $fine, $complete, $contam) = @_;
-    my $retVal = $fine * 1.09 + $complete - 5 * $contam;
+    my ($coarse, $fine, $complete, $contam, $hypo, $contigs) = @_;
+    my $retVal = $fine * 1.09 + $complete - 5 * $contam - ($hypo - MAX_HYPO) * 0.70 - $contigs / 100;
     return $retVal;
 }
 
@@ -956,6 +995,39 @@ sub FindBBHs {
     return (\@pairs, \@orphans1, \@orphans2);
 }
 
+=head3 safe_percent
+
+    my $pct = GEO::safe_percent($num, $denom);
+
+Compute a safe percentage.  If the denominator is 0, the result will be an empty string, not a number.
+
+=over 4
+
+=item num
+
+Numerator for the percentage.
+
+=item denom
+
+Denominator for the percentage.
+
+=item RETURN
+
+Returns the percentage if the denominator is nonzero, else an empty string.
+
+=back
+
+=cut
+
+sub safe_percent {
+    my ($num, $denom) = @_;
+    my $retVal = '';
+    if ($denom != 0) {
+        $retVal = $num * 100 / $denom;
+    }
+    return $retVal;
+}
+
 =head2 Query Methods
 
 =head3 id
@@ -1001,7 +1073,7 @@ sub domain {
 
     my $genomeID = $geo->pegCount;
 
-Return the total number of non-hypothetical protein-encoding genes in this genome.
+Return the total number of protein-encoding genes in this genome.
 
 =cut
 
@@ -1186,7 +1258,21 @@ Return TRUE if this is a good genome, FALSE if it is not good or has not been ev
 
 sub is_good {
     my ($self) = @_;
-    my $retVal = ($self->good_seed && $self->is_consistent && $self->is_complete && $self->is_clean);
+    my $retVal = ($self->good_seed && $self->is_consistent && $self->is_complete && $self->is_clean && $self->is_understood);
+    return $retVal;
+}
+
+=head3 is_understood
+
+    my $understoodFlag = $gto->is_understood;
+
+Return TRUE if the genome's proteins are mostly non-hypothetical.
+
+=cut
+
+sub is_understood {
+    my ($self) = @_;
+    my $retVal = hypoX($self->hypoCount);
     return $retVal;
 }
 
@@ -1216,7 +1302,8 @@ sub qscore {
     my $retVal = 0;
     my $qHash = $self->{quality};
     if ($qHash) {
-        $retVal = $qHash->{fine_consis} * 1.09 + $qHash->{complete} - 5 * $qHash->{contam};
+        $retVal = qScoreX($qHash->{fine_consis}, $qHash->{complete}, $qHash->{contam},
+                $self->hypoCount, $self->contigCount);
     }
     return $retVal;
 }
@@ -1265,18 +1352,13 @@ sub name {
 
     my $count = $geo->contigCount;
 
-Return the number of contigs in the genome. If this object is abridged, it will return C<undef>.
+Return the number of contigs in the genome.
 
 =cut
 
 sub contigCount {
     my ($self) = @_;
-    my $retVal;
-    my $contigs = $self->{contigs};
-    if ($contigs) {
-        $retVal = scalar keys %$contigs;
-    }
-    return $retVal;
+    return $self->{contigCount};
 }
 
 =head3 refList
@@ -1811,6 +1893,9 @@ sub UpdateGTO {
     $gtoQ->{completeness_group} = $quality->{group};
     $gtoQ->{completeness_taxon} = $quality->{groupTaxon};
     $gtoQ->{genome_metrics} = $quality->{metrics};
+    $gtoQ->{cds_ratio} = _copy_percent($self->{cdsPercent});
+    $gtoQ->{hypothetical_cds_ratio} = _copy_percent($self->{hypoPercent});
+    $gtoQ->{plfam_cds_ratio} = _copy_percent($self->{plfamPercent});
     $ppr->{over_present} = $quality->{over_roles};
     $ppr->{under_present} = $quality->{under_roles};
     $ppr->{predicted_roles} = $quality->{pred_roles};
@@ -2312,6 +2397,35 @@ sub _format_comments {
     return $retVal;
 }
 
+=head3 _copy_percent
+
+    my $ratio = GEO::_copy_percent($percent);
+
+Convert a percentage to a ratio.
+
+=over 4
+
+=item percent
+
+Percentage to convert.
+
+=item RETURN
+
+Returns C<undef> if the percentage is blank, else the ratio from which the percentage was computed.
+
+=back
+
+=cut
+
+sub _copy_percent {
+    my ($percent) = @_;
+    my $retVal;
+    if (defined $percent && $percent ne '') {
+        $retVal = $percent / 100;
+    }
+    return $retVal;
+}
+
 =head3 _cr_link
 
     my $html = GEO::_cr_link($fid);
@@ -2459,7 +2573,7 @@ sub _RoleMaps {
 
 =head3 _ReadModifications
 
-	my $fidHash = _ReadModifications($modFile);
+    my $fidHash = _ReadModifications($modFile);
 
 Read the modified features from a modification file.  The modification file is tab-delimited, with feature IDs in the first column,
 a three-digit code in the second column, and a functional assignment in the third.  The functional assignment is a corrected version
@@ -2480,19 +2594,19 @@ Returns a reference to a hash mapping each feature ID to its modified functional
 =cut
 
 sub _ReadModifications {
-	my ($modFile) = @_;
-	# This will be the return hash.
-	my %retVal;
-	# Loop through the modification file.
-	open(my $ih, '<', $modFile) || die "Could not open modification file $modFile: $!";
-	while (! eof $ih) {
-		my $line = <$ih>;
-		my ($fid, $code, $newFun) = split /\t/, $line;
-		if (substr($code,0,1) eq '1') {
-			$retVal{$fid} = $newFun;
-		}
-	}
-	return \%retVal;
+    my ($modFile) = @_;
+    # This will be the return hash.
+    my %retVal;
+    # Loop through the modification file.
+    open(my $ih, '<', $modFile) || die "Could not open modification file $modFile: $!";
+    while (! eof $ih) {
+        my $line = <$ih>;
+        my ($fid, $code, $newFun) = split /\t/, $line;
+        if (substr($code,0,1) eq '1') {
+            $retVal{$fid} = $newFun;
+        }
+    }
+    return \%retVal;
 }
 
 =head3 _BuildGeo
@@ -2578,32 +2692,6 @@ sub _BuildGeo {
     my $rToUseH = $options->{rolesToUse};
     my $detail = $options->{detail} // 0;
     my $logH = $options->{logH};
-    # Check for quality data in the GTO.
-    if ($gto->{quality}) {
-        my %quality;
-        my $gtoQ = $gto->{quality};
-        # Pull out the basic scores.
-        $quality{coarse_consis} = $gtoQ->{coarse_consistency};
-        $quality{fine_consis} = $gtoQ->{fine_consistency};
-        $quality{complete} = $gtoQ->{completeness};
-        $quality{contam} = $gtoQ->{contamination};
-        $quality{group} = $gtoQ->{completeness_group};
-        $quality{metrics} = $gtoQ->{genome_metrics};
-        # Get the problematic role scores and counts.
-        my $ppr = $gtoQ->{problematic_roles_report};
-        $quality{over_roles} = $ppr->{over_present};
-        $quality{under_roles} = $ppr->{under_present};
-        $quality{pred_roles} = $ppr->{predicted_roles};
-        $quality{consistency_roles} = $ppr->{consistency_roles};
-        $quality{completeness_roles} = $ppr->{completeness_roles};
-        # To get a full role report ("role_comments" and "contigs"), you
-        # need to call AnalyzeQualityData.
-        $retVal->{quality} = \%quality;
-        # Now copy over the quality statistics.
-        $retVal->{cdsPercent} = ($gtoQ->{cds_ratio} // 0) * 100;
-        $retVal->{hypoPercent} = ($gtoQ->{hypothetical_cds_ratio} // 0) * 100;
-        $retVal->{plfamPercent} = ($gtoQ->{plfam_cds_ratio} // 0) * 100;
-    }
     # Check for a lineage.
     if ($gto->{ncbi_lineage}) {
         $retVal->{lineage} = [map { $_->[1] } @{$gto->{ncbi_lineage}} ];
@@ -2617,7 +2705,7 @@ sub _BuildGeo {
     my $goodSeed = 1;
     my $bestSeedLen = 0;
     # We need a hash to count role checksums and a counter for PEGs found.
-    my ($pegCount, $hypoCount) = (0, 0);
+    my ($pegCount, $hypoCount, $plfamCount) = (0, 0, 0);
     my %ckHash;
     # Create the role tables.
     my (%roles, %proteins, %locs);
@@ -2629,8 +2717,12 @@ sub _BuildGeo {
         if ($feature->{type} =~ /^CDS|peg/) {
             if (! $function || SeedUtils::hypo($function)) {
                 $hypoCount++;
-            } else {
-                $pegCount++;
+            }
+            $pegCount++;
+            # Check for a PLFAM feature.
+            my $fams = $feature->{family_assignments};
+            if ($fams && scalar grep { $_->[0] eq 'PLFAM' } @$fams) {
+                $plfamCount++;
             }
         }
         # Only features with functions matter to us.
@@ -2691,6 +2783,35 @@ sub _BuildGeo {
     $retVal->{roleCount} = scalar keys %ckHash;
     $retVal->{pegCount} = $pegCount;
     $retVal->{hypoCount} = $hypoCount;
+    $retVal->{plfamCount} = $plfamCount;
+    $retVal->{contigCount} = scalar @{$gto->{contigs}};
+    # Check for quality data in the GTO.
+    if ($gto->{quality}) {
+        my %quality;
+        my $gtoQ = $gto->{quality};
+        # Pull out the basic scores.
+        $quality{coarse_consis} = $gtoQ->{coarse_consistency};
+        $quality{fine_consis} = $gtoQ->{fine_consistency};
+        $quality{complete} = $gtoQ->{completeness};
+        $quality{contam} = $gtoQ->{contamination};
+        $quality{group} = $gtoQ->{completeness_group};
+        $quality{metrics} = $gtoQ->{genome_metrics};
+        # Get the problematic role scores and counts.
+        my $ppr = $gtoQ->{problematic_roles_report};
+        $quality{over_roles} = $ppr->{over_present};
+        $quality{under_roles} = $ppr->{under_present};
+        $quality{pred_roles} = $ppr->{predicted_roles};
+        $quality{consistency_roles} = $ppr->{consistency_roles};
+        $quality{completeness_roles} = $ppr->{completeness_roles};
+        # To get a full role report ("role_comments" and "contigs"), you
+        # need to call AnalyzeQualityData.
+        $retVal->{quality} = \%quality;
+    }
+    # Compute the ratios.  We need the DNA length.
+    my $total = $gto->n_length;
+    $retVal->{cdsPercent} = safe_percent($pegCount * 1000, $total);
+    $retVal->{hypoPercent} = safe_percent($hypoCount, $pegCount);
+    $retVal->{plfamPercent} = safe_percent($plfamCount, $pegCount);
     # Compute the good-seed flag.
     if (! $seedCount) {
         $stats->Add(seedNotFound => 1);
