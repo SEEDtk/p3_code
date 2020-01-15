@@ -133,12 +133,12 @@ A hash containing zero or more of the following keys.
 =item roleFile
 
 Name of the the C<roles.in.subsystems> file. This is a tab-delimited file of interesting roles, each record containing (0) a role
-ID, (1) a role checksum, and (2) a role name. The default is C<roles.in.subsystems> in the SEEDtk global directory.
+ID, (1) a role checksum, and (2) a role name. The default is C<roles.in.subsystems> in the SEEDtk evaluation directory.
 
 =item rolesToUse
 
 Name of the C<roles.to.use> file. This is a tab-delimited file containing the list of roles of interest. Each record contains
-a role ID in its first column. The default is C<roles.to.use> in the SEEDtk global directory.
+a role ID in its first column. The default is C<roles.to.use> in the SEEDtk evaluation directory.
 
 =item predictors
 
@@ -168,7 +168,7 @@ sub new {
     my $retVal = { logH => $logH, stats => $stats };
     bless $retVal, $class;
     # Analyze the options, starting with the predictors.
-    my ($predictors, $rolesToUse, $roleFile) =  map { "$FIG_Config::p3data/$_"} qw(FunctionPredictors roles.to.use roles.in.subsystems);
+    my ($predictors, $rolesToUse, $roleFile) =  map { "$FIG_Config::p3data/Eval/$_"} qw(FunctionPredictors roles.to.use roles.in.subsystems);
     if ($options{predictors}) {
         $predictors = $options{predictors};
     }

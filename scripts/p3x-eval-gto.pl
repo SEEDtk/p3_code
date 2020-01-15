@@ -25,12 +25,12 @@ If this option is specified and C<ref> is not specified, a reference genome will
 =item checkDir
 
 The name of the directory containing the reference genome table and the completeness data files. The default
-is C<CheckG> in the SEEDtk global data directory.
+is C<CheckR> in the SEEDtk evaluation directory.
 
 =item predictors
 
 The name of the directory containing the role definition files and the function predictors for the consistency
-checking. The default is C<FunctionPredictors> in the SEEDtk global data directory.
+checking. The default is C<FunctionPredictors> in the SEEDtk evaluation directory.
 
 =item template
 
@@ -72,8 +72,8 @@ use GenomeTypeObject;
 my $opt = P3Utils::script_opts('gtoFile outFile outHtml',
         ['ref|r=s', 'reference genome ID (implies deep)'],
         ['deep', 'if specified, the genome is compared to a reference genome for more detailed analysis'],
-        ['checkDir=s', 'completeness data directory', { default => "$FIG_Config::p3data/CheckG" }],
-        ['predictors=s', 'function predictors directory', { default => "$FIG_Config::p3data/FunctionPredictors" }],
+        ['checkDir=s', 'completeness data directory', { default => "$FIG_Config::p3data/Eval/CheckR" }],
+        ['predictors=s', 'function predictors directory', { default => "$FIG_Config::p3data/Eval/FunctionPredictors" }],
         ['template=s', 'template for web pages', { default => "$FIG_Config::mod_base/p3_code/lib/BinningReports/webdetails.tt" }],
         ['external', 'the genome is not currently installed in PATRIC'],
         ['binned', 'the genome contig IDs are user-suppled, not PATRIC-generated'],

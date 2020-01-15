@@ -272,12 +272,22 @@ option is specified and C<ref> is B<not> specified, a reference genome will be c
 =item checkDir
 
 The name of the directory containing the reference genome table and the completeness data files. The default
-is C<CheckG> in the SEEDtk global data directory.
+is C<CheckR> in the SEEDtk evaluation directory.
 
 =item predictors
 
-The name of the directory containing the role definition files and the function predictors for the consistency
-checking. The default is C<FunctionPredictors> in the SEEDtk global data directory.
+The name of the directory containing the function predictors for the consistency
+checking. The default is C<FunctionPredictors> in the SEEDtk evaluation directory.
+
+=item roleFile
+
+The name of the C<roles.in.subsystems> file.  The default is to look in the C<FunctionPredictors> directory
+and then the SEEDtk evaluation directory.
+
+=item rolesToUse
+
+The name of the C<roles.to.use> file. The default is to look in the C<FunctionPredictors> directory
+and then the SEEDtk evaluation directory.
 
 =item p3
 
@@ -321,12 +331,15 @@ sub Process {
     # Create the work directory.
     my $tmpObject = File::Temp->newdir();
     my $workDir = $tmpObject->dirname;
+    # Get the role files.
+    my $roleFile = $options{roleFile};
+    my $rolesToUse = $options{rolesToUse};
     # Create the consistency helper.
-    my $evalCon = EvalCon->new(predictors => $options{predictors});
+    my $evalCon = EvalCon->new(predictors => $options{predictors}, roleFile => $roleFile, rolesToUse => $rolesToUse);
     # Get access to the statistics object.
     my $stats = $evalCon->stats;
     # Create the completeness helper.
-    my $checkDir = $options{checkDir} // "$FIG_Config::p3data/CheckG";
+    my $checkDir = $options{checkDir} // "$FIG_Config::p3data/Eval/CheckR";
     my ($nMap, $cMap) = $evalCon->roleHashes;
     my $evalG = EvalCom::Tax->new($checkDir, roleHashes=> [$nMap, $cMap], stats => $stats);
     # Compute the detail level.
