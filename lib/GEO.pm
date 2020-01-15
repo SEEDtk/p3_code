@@ -860,7 +860,7 @@ Returns a number from -500 to 209 indicating the relative quality of the genome.
 
 sub qscoreX {
     my ($coarse, $fine, $complete, $contam, $hypo, $contigs) = @_;
-    my $retVal = $fine * 1.09 + $complete - 5 * $contam - ($hypo - MAX_HYPO) * 0.70 - $contigs / 100;
+    my $retVal = $fine * 1.09 + $complete - 5 * $contam + (100 - $hypo) - $contigs / 100;
     return $retVal;
 }
 
