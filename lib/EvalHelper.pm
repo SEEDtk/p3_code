@@ -79,6 +79,16 @@ is C<CheckG> in the SEEDtk global data directory.
 The name of the directory containing the role definition files and the function predictors for the consistency
 checking. The default is C<FunctionPredictors> in the SEEDtk global data directory.
 
+=item roleFile
+
+The name of the C<roles.in.subsystems> file.  The default is to look in the C<FunctionPredictors> directory
+and then the SEEDtk evaluation directory.
+
+=item rolesToUse
+
+The name of the C<roles.to.use> file. The default is to look in the C<FunctionPredictors> directory
+and then the SEEDtk evaluation directory.
+
 =item p3
 
 A L<P3DataAPI> object for accessing the PATRIC database. If omitted, one will be created internally.
@@ -140,8 +150,11 @@ sub ProcessGto {
     } elsif (! -d $workDir) {
         File::Copy::Recursive::pathmk($workDir) || die "Could not create work directory: $!";
     }
+    # Get the role files.
+    my $roleFile = $options{roleFile};
+    my $rolesToUse = $options{rolesToUse};
     # Create the consistency helper.
-    my $evalCon = EvalCon->new(predictors => $options{predictors});
+    my $evalCon = EvalCon->new(predictors => $options{predictors}, roleFile => $roleFile, rolesToUse => $rolesToUse);
     # Get access to the statistics object.
     my $stats = $evalCon->stats;
     # Create the completeness helper.
