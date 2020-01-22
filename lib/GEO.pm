@@ -367,9 +367,9 @@ sub CreateFromPatric {
     for my $genomeTuple (@$genomeTuples) {
         my ($genome, $name, $domain, $taxon, $lineage, $cdsRatio, $hypoRatio, $plfamRatio, $plfamCount, $contigCount) = @$genomeTuple;
         push @{$taxes{$taxon}}, $genome;
-        my $cdsPercent = ($cdsRatio ? $cdsRatio * 100 : '');
-        my $hypoPercent = ($hypoRatio ? $hypoRatio * 100 : '');
-        my $plfamPercent = ($plfamRatio ? $plfamRatio * 100 : '');
+        my $cdsPercent = ($cdsRatio ? $cdsRatio * 100 : 0);
+        my $hypoPercent = ($hypoRatio ? $hypoRatio * 100 : 0);
+        my $plfamPercent = ($plfamRatio ? $plfamRatio * 100 : 0);
         $retVal{$genome} = { id => $genome, name => $name, domain => $domain, nameMap => $nMap, checkMap => $cMap,
             taxon => $taxon, lineage => ($lineage || []), binFlag => 0, seed => $protHash{$genome}, gc => 11,
             cdsPercent => $cdsPercent, hypoPercent => $hypoPercent, plfamPercent => $plfamPercent,
@@ -455,10 +455,15 @@ sub CreateFromPatric {
         }
         # Store the role map.
         $retVal{$genome}{roleFids} = \%roles;
+        # Fix the hypothetical percent.
+        if (! $retVal{$genome}{hypoPercent}  && $pegCount) {
+            $retVal{$genome}{hypPercent} = $hypoCount * 100 / $pegCount;
+        }
         # Store the role counts.
         $retVal{$genome}{pegCount} = $pegCount;
         $retVal{$genome}{hypoCount} = $hypoCount;
         $retVal{$genome}{roleCount} = scalar keys %ckHash;
+        # Fix the hypothetical percent.
         # Compute the good-seed flag.
         if (! $seedCount) {
             $stats->Add(seedNotFound => 1);
