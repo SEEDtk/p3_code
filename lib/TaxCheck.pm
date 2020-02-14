@@ -109,7 +109,7 @@ If TRUE, progress messages will be written to STDERR.
 =item protFile
 
 A FASTA file containing examples of the universal role to use for seeding the bin assignment.  The default is
-C<seedprot.fa> in the global data directory.
+C<seedProt.fa> in the global data directory.
 
 =item seedFastaFile
 
@@ -145,7 +145,7 @@ sub new {
     my ($class, $p3, %options) = @_;
     # Extract the options.
     my $debug = $options{debug} // 0;
-    my $protFile = $options{protFile} // "$FIG_Config::p3data/seedprot.fa";
+    my $protFile = $options{protFile} // "$FIG_Config::p3data/seedProt.fa";
     my $seedFastaFile = $options{seedFastaFile} // "$FIG_Config::p3data/PhenTrnaSyntAlph.fa";
     my $maxE = $options{maxE} // 1e-20;
     my $refMaxE = $options{refMaxE} // 1e-10;
