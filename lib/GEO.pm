@@ -1277,7 +1277,7 @@ Return TRUE if the genome's proteins are mostly non-hypothetical.
 
 sub is_understood {
     my ($self) = @_;
-    my $retVal = hypoX($self->hypoCount);
+    my $retVal = hypoX($self->hypoPercent);
     return $retVal;
 }
 
