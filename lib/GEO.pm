@@ -857,7 +857,7 @@ The number of contigs.
 
 =item RETURN
 
-Returns a number from -500 to 209 indicating the relative quality of the genome.
+Returns a number from -500 to 309 indicating the relative quality of the genome.
 
 =back
 
@@ -1307,8 +1307,8 @@ sub qscore {
     my $retVal = 0;
     my $qHash = $self->{quality};
     if ($qHash) {
-        $retVal = qScoreX($qHash->{fine_consis}, $qHash->{complete}, $qHash->{contam},
-                $self->hypoCount, $self->contigCount);
+        $retVal = qscoreX($qHash->{coarse_consis}, $qHash->{fine_consis}, $qHash->{complete}, $qHash->{contam},
+                $self->hypoPercent, $self->contigCount);
     }
     return $retVal;
 }

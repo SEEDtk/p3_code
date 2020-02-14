@@ -102,6 +102,7 @@ The following bins did not meet the quality criteria:</p>
 <th>Fine consistency (%)</th>
 <th>Completeness (%)</th>
 <th>Contamination (%)</th>
+<th>Hypothetical (%)</th>
 <th>Contig count</th>
 <th>DNA size (bp)</th>
 <th>Contigs N50 (bp)</th>
@@ -127,6 +128,7 @@ The following bins did not meet the quality criteria:</p>
 <td [% g.scikit_color %]>[% g.scikit_fine %]</td>
 <td [% g.completeness_color %]>[% g.checkg_completeness %]</td>
 <td [% g.contamination_color %]>[% g.checkg_contamination %]</td>
+<td [% g.hypo_color %]>[% g.hypo_pct %]</td>
 <td>[% g.contigs %]</td>
 <td>[% g.dna_bp %]</td>
 <td>[% g.n50 %]</td>

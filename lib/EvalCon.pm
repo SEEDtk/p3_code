@@ -111,7 +111,7 @@ in the function predictors directory, or the one in the SEEDtk global directory 
 =cut
 
 sub role_options {
-    return (['predictors|P=s', 'function predictors directory'],
+    return (['eval|D=s', 'evaluation data directory', { default => "$FIG_Config::p3data/Eval" }],
             ['roleFile|rolefile|R=s', 'role definition file'],
             ['rolesToUse|rolestouse|r=s', 'usefule role list file']);
 }
@@ -140,9 +140,9 @@ ID, (1) a role checksum, and (2) a role name. The default is C<roles.in.subsyste
 Name of the C<roles.to.use> file. This is a tab-delimited file containing the list of roles of interest. Each record contains
 a role ID in its first column. The default is C<roles.to.use> in the SEEDtk evaluation directory.
 
-=item predictors
+=item eval
 
-Name of the directory containing the function predictors. The default is C<FunctionPredictors> in the SEEDtk global directory.
+Name of the directory containing the evaluation data structures. The default is C<Eval> in the SEEDtk global directory.
 If a C<roles.to.use> file and/or a C<roles.in.subsystems> file exists in this directory, it overrides the defaults above.
 
 =item stats
@@ -228,7 +228,10 @@ Open file handle for log messages.
 
 sub new_for_script {
     my ($class, $opt, $logH) = @_;
-    return EvalCon::new($class, predictors => $opt->predictors, roleFile => $opt->rolefile, rolesToUse => $opt->rolestouse, logH => $logH);
+    my $evalDir = $opt->eval;
+    my $roleFile = $opt->rolefile // "$evalDir/roles.in.subsystems";
+    my $rolesToUse = $opt->rolestouse // "$evalDir/roles.to.use";
+    return EvalCon::new($class, predictors => "$evalDir/FunctionPredictors", roleFile => $roleFile, rolesToUse => $rolesToUse, logH => $logH);
 }
 
 
