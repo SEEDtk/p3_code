@@ -26,6 +26,7 @@ package Bin::Improve;
     use Stats;
     use P3DataAPI;
     use RoleParse;
+    use Sys::Hostname;
 
 =head1 Use Quality Information to Produce an Improved Bin
 
@@ -260,6 +261,10 @@ sub Improve {
     } else {
         # Remove the bad contigs.
         $self->TrimGto($gto, $badHash);
+        # Record the improvement in the GTO.
+        $gto->add_analysis_event({ tool_name => 'p3x-improve-gto', execution_time => time(),
+                                   parameters => $refs,
+                                   hostname => Sys::Hostname::hostname() });
         $retVal = 1;
     }
     return $retVal;
