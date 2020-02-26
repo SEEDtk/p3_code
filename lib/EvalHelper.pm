@@ -354,7 +354,7 @@ sub Process {
     # Create the completeness helper.
     my $checkDir = $options{checkDir} // "$FIG_Config::p3data/Eval/CheckR";
     my ($nMap, $cMap) = $evalCon->roleHashes;
-    my $evalG = EvalCom::Tax->new($checkDir, roleHashes=> [$nMap, $cMap], stats => $stats);
+    my $evalG = EvalCom::Rep->new($checkDir, roleHashes=> [$nMap, $cMap], stats => $stats);
     # Compute the detail level.
     my $detailLevel = (($options{deep} || $options{ref}) ? 2 : 1);
     # Set up the options for creating the GEOs.
