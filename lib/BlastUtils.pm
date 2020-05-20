@@ -1635,7 +1635,7 @@ sub verify_db
         }
 
         my $newdb = "$tempD/db";
-        if ( system( 'cp', $db, $newdb ) )  # I would prefer /bin/cp, but ...
+        if ( ! File::Copy::Recursive::fcopy( $db, $newdb ) )  # I would prefer /bin/cp, but ...
         {
             warn "BlastUtils::verify_db: failed to copy database file to a new location.\n";
             return '';

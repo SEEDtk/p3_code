@@ -25,7 +25,12 @@ package SeedTkRun;
     };
     use File::Spec;
     use File::Temp;
-    use FIG_Config;
+    my @toolDir;
+    eval {
+        require FIG_Config;
+        push @toolDir, @FIG_Config::tools;
+    };
+
     use StringUtils;
 
 =head1 Operating System Access Methods
@@ -61,19 +66,15 @@ Returns the full path to the executable, or C<undef> if the program is not found
 sub executable_for {
     # Get the parameters.
     my ($programName) = @_;
-    # These variables will contain the path delimiter and the list of suffixes to check.
-    my ($delim, @suffixes);
-    if ($FIG_Config::win_mode) {
-        $delim = ';';
+    # This variable will contain the list of suffixes to check.
+    my @suffixes = ('');
+    if ($ENV{PATHEXT}) {
         @suffixes = split /;/, $ENV{PATHEXT};
-    } else {
-        $delim = ':';
-        @suffixes = ('');
     }
     # Loop through the tool and path directories.
     my ($retVal, $path);
-    my @paths = split $delim, $ENV{PATH};
-    push @paths, @FIG_Config::tools;
+    my @paths = File::Spec->path();
+    push @paths, @toolDir;
     while (! $retVal && defined($path = pop @paths)) {
         # Form the execution name.
         my $testName = File::Spec->catfile($path, $programName);
@@ -94,7 +95,7 @@ sub executable_for {
 
 Return the name of a directory in which temporary files can be written. The first choice is the
 directory specified in the C<tmp> member of the incoming options hash and the second choice is the
-value of B<$FIG_Config::temp>.
+value of the environment variable C<TMPDIR>
 
 =over 4
 
@@ -120,7 +121,10 @@ sub location_of_tmp {
     if (! $options && $options->{tmp}) {
         $retVal = $options->{tmp};
     } else {
-        $retVal = $FIG_Config::temp;
+        $retVal = $ENV{TMPDIR};
+        if (! $retVal) {
+            $retVal = File::Temp::tempdir("TempXXXXXXXX", CLEANUP => 1);
+        }
     }
     if (! -d $retVal || ! -w $retVal) {
         Confess("Invalid temp directory $retVal.");
@@ -156,7 +160,7 @@ Extension for the file name. This defaults to C<tmp>.
 
 =item dir (optional)
 
-Target directory for the file. This defaults to the value of B<$FIG_Config::temp>.
+Target directory for the file. This defaults to the value of the C<TMPDIR> environment variable.
 
 =item RETURN
 
@@ -177,7 +181,7 @@ sub tmp_file {
     # Handle defaults.
     $base //= 'temp';
     $ext //= 'tmp';
-    $dir //= $FIG_Config::temp;
+    $dir //= location_of_tmp();
     # Create the file name. Note we turn off warnings because we may not be opening the file here.
     local $^W = 0;
     ($fh, $retVal) = File::Temp::tempfile($base . "XXXXXXXX", SUFFIX => ".$ext", OPEN => wantarray, DIR => $dir);
@@ -249,7 +253,7 @@ and to delete it otherwise.
 =item tmp
 
 Name of the directory in which the new temporary directory should be placed. If
-omitted, the value of B<$FIG_Config::temp> is used.
+omitted, L</location_of_tmp> is called.
 
 =item tmp_dir
 
