@@ -1366,6 +1366,19 @@ sub contigCount {
     return $self->{contigCount};
 }
 
+=head3 contigHash
+
+    my $contigH = $geo->contigHash;
+
+Return a hash from each contig ID to its length.  If the contigs are not loaded, it will return an empty hash.
+
+=cut
+
+sub contigHash {
+    my ($self) = @_;
+    return ($self->{contigs} // {});
+}
+
 =head3 refList
 
     my $refGeoList = $geo->refList;
