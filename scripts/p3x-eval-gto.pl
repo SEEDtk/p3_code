@@ -52,6 +52,17 @@ this file, if an improvement is possible.
 
 Name of a working directory for creating the matrix.  If none is specified, a temporary directory will be used.
 
+=item checkDir
+
+The name of the directory containing the reference genome table and the completeness data files. The default
+is to use the directory computed by C<--evalDir>.
+
+=item predictors
+
+The name of the directory containing the role definition files and the function predictors for the consistency
+checking. The default is to use the directory computed by C<--evalDir>.
+
+
 =back
 
 =cut
@@ -67,6 +78,8 @@ my $opt = P3Utils::script_opts('gtoFile outFile outHtml',
         ['ref|r=s', 'reference genome ID (implies deep)'],
         ['deep', 'if specified, the genome is compared to a reference genome for more detailed analysis'],
         ['evalDir|eval=s', 'evaluation data directory', { default => "$FIG_Config::p3data/Eval" }],
+        ['checkDir=s', 'completeness data directory'],
+        ['predictors=s', 'function predictors directory'],
         ['template=s', 'template for web pages', { default => "$FIG_Config::mod_base/p3_code/lib/BinningReports/webdetails.tt" }],
         ['external', 'the genome is not currently installed in PATRIC'],
         ['binned', 'the genome contig IDs are user-suppled, not PATRIC-generated'],
@@ -91,8 +104,8 @@ if (! $gto) {
     die "Invalid or missing gto file $gtoFile.";
 }
 # Call the main processor.
-my $checkDir = $opt->evaldir . "/CheckR";
-my $funcDir = $opt->evaldir . "/FunctionPredictors";
+my $checkDir = $opt->checkDir // ($opt->evaldir . "/CheckR");
+my $funcDir = $opt->predictors // ($opt->evaldir . "/FunctionPredictors");
 my $geo = EvalHelper::ProcessGto($gto, 'ref' => $opt->ref, deep => $opt->deep, checkDir => $checkDir, predictors => $funcDir,
     parallel => $opt->parallel, workDir => $opt->workdir,
     p3 => $p3, outFile => $outFile, outHtml => $outHtml, template => $opt->template, external => $opt->external, binned => $opt->binned,
