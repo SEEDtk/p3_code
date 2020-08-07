@@ -421,7 +421,7 @@ sub sseq {
 
     my $sloc = $hsp->sloc;
 
-Return the match region of the subject sequence as a L<BasicLocation> object.
+Return the match region of the subject sequence as a location object.
 
 =cut
 
@@ -445,7 +445,7 @@ sub sloc {
 
     my $qloc = $hsp->qloc;
 
-Return the match region of the query sequence as a L<BasicLocation> object.
+Return the match region of the query sequence as a location object.
 
 =cut
 
