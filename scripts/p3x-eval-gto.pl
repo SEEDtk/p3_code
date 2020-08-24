@@ -104,7 +104,7 @@ if (! $gto) {
     die "Invalid or missing gto file $gtoFile.";
 }
 # Call the main processor.
-my $checkDir = $opt->checkDir // ($opt->evaldir . "/CheckR");
+my $checkDir = $opt->checkdir // ($opt->evaldir . "/CheckR");
 my $funcDir = $opt->predictors // ($opt->evaldir . "/FunctionPredictors");
 my $geo = EvalHelper::ProcessGto($gto, 'ref' => $opt->ref, deep => $opt->deep, checkDir => $checkDir, predictors => $funcDir,
     parallel => $opt->parallel, workDir => $opt->workdir,
