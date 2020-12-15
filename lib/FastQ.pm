@@ -346,7 +346,9 @@ sub Echo {
     my ($self, $oh) = @_;
     my $id = $self->id;
     print $oh ">$id/1\n$self->{left}\n";
-    print $oh ">$id/2\n$self->{right}\n";
+    if (! $self->{singleton}) {
+        print $oh ">$id/2\n$self->{right}\n";
+    }
 }
 
 =head3 Save
