@@ -75,7 +75,7 @@ if (! $binDir) {
     die "No binning directory specified.";
 } elsif (! -d $binDir) {
     die "Binning directory $binDir not found.";
-} elsif (! -s "$binDir/checkv/unbinned.fasta") {
+} elsif (! -s "$binDir/unbinned.fasta") {
     die "Binning directory $binDir does not have unbinned contig FASTA file.";
 }
 # Invoke checkv to identify viral contigs.
@@ -86,12 +86,12 @@ my $rc = system($cmd);
 if ($rc) {
     die "Error in CheckV (rc = $rc).\n";
 }
-if (! -s "$binDir/vbins.tsv" && $rc == 0) {
+if ($rc == 0) {
     # Now we must process the checkv output.
     print "Processing checkV output for $binDir.\n";
     $stats->Add(outputRuns => 1);
     my $checkv = CVUtils->new($checkVDb, $binDir, $binDir, logH => \*STDOUT, stats => $stats, maxE => $maxError, minP => $minPct);
     $checkv->CreateBins();
 }
-print "All done: " . $stats->Show();
+print "All done:\n" . $stats->Show();
 
