@@ -26,6 +26,7 @@ package CVUtils;
     use FastA;
     use VFile::Circular;
     use VFile::GenBank;
+    use CGI;
 
 =head1 CheckV Processing Utilities
 
@@ -172,17 +173,31 @@ sub CreateBins {
     $self->_buildBins($binHash);
     # Write the report.  Note that we only output bins with a bin number.
     print $logH "Writing final report.\n";
+    open(my $wh, '>', "$self->{outDir}/vbins.html") || die "Could not open virus bin web page: $!";
     open(my $oh, '>', "$self->{outDir}/vbins.tsv") || die "Could not open virus bin report: $!";
-    print $oh join("\t", "virus_id", "num", "taxon_id", "name", "length", "completeness", "pct_error", "coverage") . "\n";
+    my @cols = ("virus_id", "bin", "taxon_id", "name", "length", "completeness", "pct_error", "coverage");
+    my @formats = ("text", "num", "text", "text", "num", "num", "num", "num");
+    print $oh join("\t", @cols) . "\n";
+    print $wh CGI::start_html(-title => "Virus Bin Summary");
+    print $wh CGI::style("th, tr, td { border-style: inset; border-collapse: collapse; vertical-align: top; padding: 3px; }\nth { text-align: left; background: #EEEEEE; }\ntd.num, th.num { text-align: right; }");
+    print $wh CGI::h1("Virus Bin Summary");
+    print $wh CGI::p("This table lists all the known viruses found in the sample.");
+    print $wh CGI::start_table();
+    print $wh CGI::Tr( map { CGI::th({ class => $formats[$_] }, $cols[$_]) } 0..7);
     for my $virusID (sort keys %$binHash) {
         my $vBin = $binHash->{$virusID};
         if ($vBin->num > 0) {
             my ($taxonID, $name) = @{$virHash->{$virusID}};
             $taxonID //= 10239;
             $name //= "Unknown virus $virusID";
-            print $oh join("\t", $virusID, $vBin->num, $taxonID, $name, $vBin->len, $vBin->percent, $vBin->err, $vBin->covg) . "\n";
+            @cols = ($virusID, $vBin->num, $taxonID, $name, $vBin->len, sprintf("%6.2f", $vBin->percent),
+                    sprintf("%6.2f", $vBin->err), sprintf("%6.2f", $vBin->covg));
+            print $oh join("\t", @cols) . "\n";
+            print $wh CGI::Tr( map { CGI::td({ class => $formats[$_] }, $cols[$_]) } 0..7);
         }
     }
+    print $wh CGI::end_table();
+    print $wh CGI::end_html();
     close $oh;
 }
 
