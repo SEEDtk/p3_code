@@ -188,12 +188,13 @@ sub CreateBins {
         my $vBin = $binHash->{$virusID};
         if ($vBin->num > 0) {
             my ($taxonID, $name) = @{$virHash->{$virusID}};
-            $taxonID //= 10239;
             $name //= "Unknown virus $virusID";
-            @cols = ($virusID, $vBin->num, $taxonID, $name, $vBin->len, sprintf("%6.2f", $vBin->percent),
-                    sprintf("%6.2f", $vBin->err), sprintf("%6.2f", $vBin->covg));
-            print $oh join("\t", @cols) . "\n";
-            print $wh CGI::Tr( map { CGI::td({ class => $formats[$_] }, $cols[$_]) } 0..7);
+            if ($taxonID) {
+                @cols = ($virusID, $vBin->num, $taxonID, $name, $vBin->len, sprintf("%6.2f", $vBin->percent),
+                        sprintf("%6.2f", $vBin->err), sprintf("%6.2f", $vBin->covg));
+                print $oh join("\t", @cols) . "\n";
+                print $wh CGI::Tr( map { CGI::td({ class => $formats[$_] }, $cols[$_]) } 0..7);
+            }
         }
     }
     print $wh CGI::end_table();
