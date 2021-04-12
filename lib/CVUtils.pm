@@ -184,7 +184,8 @@ sub CreateBins {
     print $wh CGI::p("This table lists all the known viruses found in the sample.");
     print $wh CGI::start_table();
     print $wh CGI::Tr( map { CGI::th({ class => $formats[$_] }, $cols[$_]) } 0..7);
-    for my $virusID (sort keys %$binHash) {
+    for my $virusID (sort { abs(100 - $binHash->{$a}->percent) <=> abs(100 - $binHash->{$b}->percent) }
+		     keys %$binHash) {
         my $vBin = $binHash->{$virusID};
         if ($vBin->num > 0) {
             my ($taxonID, $name) = @{$virHash->{$virusID}};

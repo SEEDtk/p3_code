@@ -39,6 +39,10 @@ The maximum permissible error value for a contig to be considered valid.  The de
 
 The minimum percentage of a virus that must be present in order to be binned.  The default is C<10>.
 
+=item threads
+
+The number of compute threads to used, passed down to checkv. The default is C<1>.
+
 =back
 
 =cut
@@ -53,8 +57,9 @@ use CVUtils;
 $| = 1;
 # Get the command-line options.
 my $opt = P3Utils::script_opts('checkvDB binDir',
-        ['maxError|M=f', 'maximum permissible confidence error', { default => '10.0' }],
-        ['minPct|p=f', 'minimum permissible percent of virus present', { default => '10.0' }]
+			       ['maxError|M=f', 'maximum permissible confidence error', { default => '10.0' }],
+			       ['minPct|p=f', 'minimum permissible percent of virus present', { default => '10.0' }],
+			       ['threads|t=i', 'number of threads for checkv', { default => 1 }],
     );
 my $stats = Stats->new();
 my $maxError = $opt->maxerror;
@@ -79,7 +84,7 @@ if (! $binDir) {
     die "Binning directory $binDir does not have unbinned contig FASTA file.";
 }
 # Invoke checkv to identify viral contigs.
-my @parms = ('checkv', 'completeness', "$binDir/unbinned.fasta", "$binDir/checkv", '-d', $checkVDb);
+my @parms = ('checkv', 'completeness', "-t", $opt->threads, "$binDir/unbinned.fasta", "$binDir/checkv", '-d', $checkVDb);
 my $cmd = join(" ", @parms);
 print "Running: $cmd\n";
 my $rc = system($cmd);
