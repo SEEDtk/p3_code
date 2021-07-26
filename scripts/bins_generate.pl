@@ -549,7 +549,7 @@ for my $contig (keys %$contigHash) {
 }
 my @refGenomes = sort keys %rg;
 # Now we need GTOs for all these reference genomes.
-my $p3 = P3DataAPI->new($opt->dataAPIUrl);
+my $p3 = P3DataAPI->new($opt->dataapiurl);
 my @gtos;
 # This hash tracks the GTOs that need to be saved to disk.
 my %gtosToSave;
