@@ -271,7 +271,8 @@ my $opt = ScriptUtils::Opts('sampleDir workDir',
                 ['statistics-file=s', 'save statistics data to this file'],
                 ['scaffoldLen|XBad=i', 'number of X codons in a row to cause a contig to be rejected', { default => 50 }],
                 ['asparLen|Nbad=i', 'number of N codons in a row to cause a contig to be rejected', { default => 12 }],
-                ['nameSuffix=s',    'suffix to assign to the bin name', { default => 'clonal population' }],
+			    ['nameSuffix=s',    'suffix to assign to the bin name', { default => 'clonal population' }],
+			    ['dataAPIUrl=s', 'Override data api for this program'],
         );
 # Enable access to PATRIC from Argonne.
 $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
@@ -548,7 +549,7 @@ for my $contig (keys %$contigHash) {
 }
 my @refGenomes = sort keys %rg;
 # Now we need GTOs for all these reference genomes.
-my $p3 = P3DataAPI->new();
+my $p3 = P3DataAPI->new($opt->dataAPIUrl);
 my @gtos;
 # This hash tracks the GTOs that need to be saved to disk.
 my %gtosToSave;
