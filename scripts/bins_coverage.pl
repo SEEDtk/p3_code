@@ -82,7 +82,7 @@ my $opt = ScriptUtils::Opts('sampleFile outputDir',
         ['noData',       'no coverage data available'],
         ['lenFilter=i',  'minimum contig length', { default => 0 }],
         ['covgFilter=f', 'minimum contig mean coverage', { default => 0}],
-	['statistics-file=s', 'save statistics data to this file'],
+    ['statistics-file=s', 'save statistics data to this file'],
         );
 # Get the positional parameters.
 my ($sampleFile, $outputDir) = @ARGV;
@@ -210,7 +210,7 @@ while (! eof $ih) {
         } else {
             if (! $keyword && ! $standard && ! $noData) {
                 # Here we must compute the type of sequence label.
-                if ($comment =~ /\b(covg|coverage|cov|multi)=[0-9.]+/) {
+                if ($comment =~ /\b(covg|coverage|cov|multi)[= ][0-9.]+/) {
                     $keyword = $1;
                     print "Keyword \"$keyword\" selected.\n";
                 } elsif ($contigID =~ /(?:coverage|covg|cov)_[0-9.]+/) {
@@ -222,12 +222,13 @@ while (! eof $ih) {
                 }
             }
             if ($keyword) {
-                if ($comment =~ /\b$keyword=([0-9.]+)/) {
+                if ($comment =~ /\b$keyword[= ]([0-9.]+)/) {
                     $covg = $1;
                     $covgMean = $covg;
                 } else {
                     $stats->Add(missingKeyword => 1);
                     $errors++;
+                    $covgMean = 1.0;
                 }
             } elsif ($noData) {
                 $covg = 50;
@@ -239,6 +240,7 @@ while (! eof $ih) {
                 } else {
                     $stats->Add(badContigID => 1);
                     $errors++;
+                    $covgMean = 1.0;
                 }
             }
         }
@@ -274,12 +276,12 @@ if ($opt->statistics_file)
 {
     if (open(S, ">", $opt->statistics_file))
     {
-	print S $stats->Show();
-	close(S);
+    print S $stats->Show();
+    close(S);
     }
     else
     {
-	warn "Cannot write statistics file " . $opt->statistics_file . ": $!";
+    warn "Cannot write statistics file " . $opt->statistics_file . ": $!";
     }
 }
 if ($errors) {
