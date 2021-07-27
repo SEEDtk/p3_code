@@ -244,7 +244,7 @@ sub ProcessGto {
     # If there is an output web page file, we create the detail page.
     if ($options{outHtml}) {
         my $detailFile = $options{template} // "$FIG_Config::mod_base/p3_code/lib/BinningReports/webdetails.tt";
-        my $page = BinningReports::Detail(undef, undef, $detailFile, $retVal, $nMap);
+        my $page = BinningReports::Detail(undef, undef, $detailFile, $retVal, $nMap, $options{outputGenomeBaseURL});
         open(my $oh, '>', $options{outHtml}) || die "Could not open HTML output file: $!";
         print $oh $page;
     }

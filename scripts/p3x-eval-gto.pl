@@ -86,6 +86,7 @@ my $opt = P3Utils::script_opts('gtoFile outFile outHtml',
         ['improve=s', 'name of a FASTA file to contain an improved version of the GTO contigs'],
         ['parallel=i', 'parallelism to use in matrix evaluation', { default => 8 }],
         ['workDir=s', 'name of a working directory for the evaluation matrix']
+        ['genomeBaseUrl=s', 'Base path for PATRIC/BVBRC genome page'],
         );
 # Get access to PATRIC.
 my $p3 = P3DataAPI->new();
@@ -109,7 +110,9 @@ my $funcDir = $opt->predictors // ($opt->evaldir . "/FunctionPredictors");
 my $geo = EvalHelper::ProcessGto($gto, 'ref' => $opt->ref, deep => $opt->deep, checkDir => $checkDir, predictors => $funcDir,
     parallel => $opt->parallel, workDir => $opt->workdir,
     p3 => $p3, outFile => $outFile, outHtml => $outHtml, template => $opt->template, external => $opt->external, binned => $opt->binned,
-    improve => $opt->improve);
+				 improve => $opt->improve,
+				 ($opt->genomebaseurl ? (outputGenomeBaseURL => $opt->genomebaseurl) ? ()),
+				);
 # Write the results.
 $gto->destroy_to_file($gtoFile);
 
