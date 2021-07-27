@@ -324,6 +324,10 @@ A reference to a list of L<GEO> objects for the bins produced.
 
 A reference to a hash mapping each bin's genome ID to the URL for its report page.
 
+=item genome_url_base
+
+The base URL for genome links to use in generating the report.    
+
 =item RETURN
 
 Returns the HTML string for the summary report.
@@ -335,14 +339,16 @@ Returns the HTML string for the summary report.
 use constant WARN_COLOR => q(style="background-color: gold");
 
 sub Summary {
-    my ($jobID, $params, $bins_json, $summary_tt, $genome_group_path, $geos, $report_url_map) = @_;
+    my ($jobID, $params, $bins_json, $summary_tt, $genome_group_path, $geos, $report_url_map, $genome_url_base) = @_;
+
+    $genome_url_base //= URL_BASE;
     # Here are the storage places for found, good, and bad. The bin's descriptor goes in the
     # lists.
     my %found = (total => 0, good => 0, bad => 0);
     my (@good, @bad);
     # First we are going to read through the bins and create a map of bin names to reference genome descriptors and coverages.
     # Each reference genome descriptor is a hash-ref with members "genome" and "url".
-    my ($refGmap) = parse_bins_json($bins_json);
+    my ($refGmap) = parse_bins_json($bins_json, $genome_url_base);
     # Now we loop through the gtos and create the genome descriptors for the good and bad lists.
     my @bins = sort { $b->qscore <=> $a->qscore } @$geos;
     for my $bin (@bins) {
@@ -358,7 +364,7 @@ sub Summary {
         if ($genomeName =~ /^(.+) cleaned/) {
             $genomeKey = $1;
         }
-        my $genomeURL = join('/', URL_BASE, uri_escape($genomeID));
+        my $genomeURL = join('/', $genome_url_base, uri_escape($genomeID));
         my $pprRoleData = $bin->roleReport;
         my $refData = $refGmap->{$genomeKey};
         if (! $refData) {
@@ -543,16 +549,19 @@ Returns the HTML string for the detail report.
 =cut
 
 sub Detail {
-    my ($params, $bins_json, $detail_tt, $geo, $roleMap, $editHash) = @_;
+    my ($params, $bins_json, $detail_tt, $geo, $roleMap, $editHash, $genome_url_base) = @_;
+
+    $genome_url_base //= URL_BASE;
+    
     # First we are going to read through the bins and create a map of bin names to reference genome descriptors and coverages.
     # Each reference genome descriptor is a hash-ref with members "genome" and "url".
-    my $refGmap = parse_bins_json($bins_json);
+    my $refGmap = parse_bins_json($bins_json, $genome_url_base);
     # Now we need to build the bin descriptor from the GTO.
     my ($gThing) = copy_geo($geo);
     # Get the matching ppr and refGmap entries. Note there may not be a refGmap entry if there was no bins_json.
     my $genomeID = $geo->id;
     my $genomeName = $geo->name;
-    my $genomeURL = join('/', URL_BASE, uri_escape($genomeID));
+    my $genomeURL = join('/', $genome_url_base, uri_escape($genomeID));
     my $pprRoleData = $geo->roleReport;
     # Get the reference data.
     my $refData = $refGmap->{$genomeID};
@@ -688,7 +697,7 @@ The mean coverage of the bin.
 =cut
 
 sub parse_bins_json {
-    my ($bins_json) = @_;
+    my ($bins_json, $genome_url_base) = @_;
     my $retVal = {};
     if ($bins_json) {
         if (ref $bins_json eq 'HASH') {
@@ -697,7 +706,7 @@ sub parse_bins_json {
             for my $binThing (@$bins_json) {
                 my $name = $binThing->{name};
                 my $refs = $binThing->{refGenomes};
-                my @refList = map { { genome => $_, url => join('/', URL_BASE , uri_escape($_)) } } @$refs;
+                my @refList = map { { genome => $_, url => join('/', $genome_url_base, uri_escape($_)) } } @$refs;
                 my ($cov, $count) = (0, 0);
                 for my $covItem (@{$binThing->{contigs}}) {
                     $cov += $covItem->[2];
