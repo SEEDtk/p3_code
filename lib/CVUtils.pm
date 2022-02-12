@@ -168,7 +168,7 @@ sub CreateBins {
     # Separate the contigs into bins.
     my $binHash = $self->_computeBins();
     # Get the identifying information for each virus found.
-    my $virHash = $self->_findViruses([keys %$binHash]);
+    my $virHash = $self->_findViruses($binHash);
     # Build the bins.
     $self->_buildBins($binHash);
     # Write the report.  Note that we only output bins with a bin number.
@@ -184,8 +184,7 @@ sub CreateBins {
     print $wh CGI::p("This table lists all the known viruses found in the sample.");
     print $wh CGI::start_table();
     print $wh CGI::Tr( map { CGI::th({ class => $formats[$_] }, $cols[$_]) } 0..7);
-    for my $virusID (sort { abs(100 - $binHash->{$a}->percent) <=> abs(100 - $binHash->{$b}->percent) }
-		     keys %$binHash) {
+    for my $virusID (sort { _vcmp($binHash, $a, $b) } keys %$binHash) {
         my $vBin = $binHash->{$virusID};
         if ($vBin->num > 0) {
             my ($taxonID, $name) = @{$virHash->{$virusID}};
@@ -205,6 +204,51 @@ sub CreateBins {
 
 
 =head2 Internal Methods
+
+=head3 _vcmp
+
+    my $cmp = _vcmp($binHash, $a, $b);
+
+Compare two bins to sort them for the final report.
+
+=over 4
+
+=item binHash
+
+Reference to the master bin hash.
+
+=item a
+
+First virus bin ID.
+
+=item b
+
+Second virus bin ID.
+
+=item RETURN
+
+Returns a negative value if B<a> goes first, 0 if the bins are equal, and a positive value otherwise.
+
+=back
+
+=cut
+
+sub _vcmp {
+    my ($binHash, $a, $b) = @_;
+    my ($aBin, $bBin) = map { $binHash->{$_} } ($a, $b);
+    my ($aType, $bType) = ($aBin->{type}, $bBin->{type});
+    my $retVal = 0;
+    if ($aType eq "genbank" && $bType ne "genbank") {
+        $retVal = -1;
+    } elsif ($aType ne "genbank" && $bType eq "genbank") {
+        $retVal = 1;
+    } else {
+        $retVal = (abs(100 - $aBin->percent) <=> abs(100 - $bBin->percent));
+    }
+    return $retVal;
+
+
+}
 
 =head3 _computeBins
 
@@ -266,15 +310,15 @@ sub _computeBins {
 
 =head3 _findViruses
 
-    my $virHash = $checkV->_findViruses(\@virusIDs);
+    my $virHash = $checkV->_findViruses(\%binHash);
 
 Create a hash mapping each virus ID to its name and taxonomic ID.
 
 =over 4
 
-=item virusIDs
+=item binHash
 
-Reference to a list of CheckV virus IDs.
+Hash of virus IDs to bin structures.
 
 =item RETURN
 
@@ -285,7 +329,7 @@ Returns a reference to a hash mapping each virus ID to a [taxomomyID, name] pair
 =cut
 
 sub _findViruses {
-    my ($self, $virusIDs) = @_;
+    my ($self, $binHash) = @_;
     my $stats = $self->{stats};
     my $logH = $self->{logH};
     # Get the handlers for the two types of viruses.
@@ -293,7 +337,7 @@ sub _findViruses {
     my %vHash = (circular => VFile::Circular->new($dbDir),
             genbank => VFile::GenBank->new($dbDir));
     # Get a hash for the viruses we're trying to find.
-    my %idHash = map { $_ => 1 } @$virusIDs;
+    my %idHash = map { $_ => 1 } keys %$binHash;
     # This hash will accumulate the virus IDs of each type.
     my %typeHash;
     # Open the reference file and loop through it.
@@ -304,6 +348,7 @@ sub _findViruses {
         my ($virusID, $type) = P3Utils::get_fields($ih);
         if ($idHash{$virusID}) {
             push @{$typeHash{$type}}, $virusID;
+            $binHash->{$virusID}{type} = $type;
             $stats->Add("$type-bin" => 1);
         }
     }
