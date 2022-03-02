@@ -89,6 +89,7 @@ if __name__ == '__main__':
     prefs = {}
     if joblib.__version__ >= '0.12':
         prefs['prefer'] = 'threads'   # required for variable-sharing in newer joblibs.
+    sys.stderr.write("args.parallel=%d\n" % (args.parallel));
     predictions = joblib.Parallel(n_jobs=args.parallel, **prefs)(joblib.delayed(run_predictor)(n_col) for n_col in range(X_all.shape[1]))
 
     predictions = np.asarray(predictions)
