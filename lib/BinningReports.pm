@@ -118,7 +118,7 @@ Reference to an empty hash.
 =cut
 
 # URL helpers
-use constant URL_BASE => 'https://www.patricbrc.org/view/Genome';
+use constant URL_BASE => 'https://www.bv-brc.org/view/Genome';
 
 =head2 Public Methods
 
@@ -326,7 +326,7 @@ A reference to a hash mapping each bin's genome ID to the URL for its report pag
 
 =item genome_url_base
 
-The base URL for genome links to use in generating the report.    
+The base URL for genome links to use in generating the report.
 
 =item RETURN
 
@@ -552,7 +552,7 @@ sub Detail {
     my ($params, $bins_json, $detail_tt, $geo, $roleMap, $editHash, $genome_url_base) = @_;
 
     $genome_url_base //= URL_BASE;
-    
+
     # First we are going to read through the bins and create a map of bin names to reference genome descriptors and coverages.
     # Each reference genome descriptor is a hash-ref with members "genome" and "url".
     my $refGmap = parse_bins_json($bins_json, $genome_url_base);
@@ -654,10 +654,10 @@ sub fid_list_url {
     my ($fids) = @_;
     my $retVal;
     if (@$fids == 1) {
-        $retVal = "https://www.patricbrc.org/view/Feature/" . uri_escape($fids->[0]);
+        $retVal = "https://www.bv-brc.org/view/Feature/" . uri_escape($fids->[0]);
     } elsif (@$fids > 1) {
         my $list = join(",", map { uri_escape(qq("$_")) } @$fids);
-        $retVal = "https://www.patricbrc.org/view/FeatureList/?in(patric_id,($list))";
+        $retVal = "https://www.bv-brc.org/view/FeatureList/?in(patric_id,($list))";
     }
     return $retVal;
 }
@@ -832,7 +832,7 @@ sub copy_geo {
     }
     # If the checkg_group contains a taxon ID, convert it to a link.
     if ($gThing{checkg_group} =~ /^(.+)\s+\((\d+)\)/) {
-        $gThing{checkg_group} = qq(<a href="http://patricbrc.org/view/Taxonomy/$2">$1</a>);
+        $gThing{checkg_group} = qq(<a href="https://bv-brc.org/view/Taxonomy/$2">$1</a>);
     }
     return (\%gThing, $good);
 }
