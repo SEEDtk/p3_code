@@ -165,14 +165,24 @@ if ($covgFiles) {
         }
     }
 }
-# Open the input file.
-open(my $ih, '<', $sampleFile) || die "Could not open contigs input file: $!";
 # Open the coverage output file.
 open(my $oh, '>', "$outputDir/output.contigs2reads.txt") || die "Could not open coverage output file: $!";
 # Write the header.
 print $oh "Contig ID\tCoverages\n";
-# Open the FASTA output file.
-open(my $fh, '>', "$outputDir/contigs.fasta") || die "Could not open FASTA output file: $!";
+# Open the FASTA output file.  If it is the same as the input file, we need to rename, because
+# there is filtering and cleaning.
+my $contigFile = "$outputDir/contigs.fasta";
+# Insure the paths use the same folder separator.
+$sampleFile =~ tr/\\/\//;
+$contigFile =~ tr/\\/\//;
+if ($sampleFile eq $contigFile) {
+    my $backupFile = "$sampleFile.bak";
+    File::Copy::Recursive::fmove($sampleFile, $backupFile) || die "Could not rename $sampleFile: $!";
+    $sampleFile = $backupFile;
+}
+# Now the output file and the input file are different.  Open them both here.
+open(my $fh, '>', $contigFile) || die "Could not open FASTA output file: $!";
+open(my $ih, '<', $sampleFile) || die "Could not open contigs input file: $!";
 print "Reading FASTA input.\n";
 # This will track bad coverage data.
 my $errors = 0;

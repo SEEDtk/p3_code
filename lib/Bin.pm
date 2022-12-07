@@ -61,6 +61,14 @@ If present, the proposed taxonomy ID for the bin.
 
 If present, the proposed genome name for the bin.
 
+=item domain
+
+If present, the domain for the bin.
+
+=item gc
+
+If present, the genetic code for the bin.
+
 =back
 
 =head2 Bin Exchange Format
@@ -197,7 +205,9 @@ sub new_copy {
     my $retVal = {
         contigs => $contigs,
         refGenomes => $refs,
-        uniProts => \%uniProts
+        uniProts => \%uniProts,
+        gc => ($bin2->{gc} // 11),
+        domain => ($bin2->{domain} // "Bacteria")
     };
     # Bless and return it.
     bless $retVal, $class;
@@ -647,6 +657,27 @@ sub set_coverage {
     }
 }
 
+=head3 set_rast_data
+
+    $bin->set_rast_data($refGto);
+
+Store the genetic code and domain for this bin from the reference genome's GTO.
+
+=over 4
+
+=item refGto
+
+A L<GenomeTypeObject> for the reference genome.
+
+=back
+
+=cut
+
+sub set_rast_data {
+    my ($self, $refGto) = @_;
+    $self->{gc} = $refGto->{genetic_code};
+    $self->{domain} = $refGto->{domain};
+}
 =head3 add_ref
 
     $bin->add_ref(@genomes);
