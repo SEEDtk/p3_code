@@ -116,6 +116,10 @@ computing the identity of the bins. The default is C<4>.
 
 If specified, the minimum length of a contig that can be placed into a bin. The default is C<400>.
 
+=item binCovgFilter
+
+If specified, the minimum coverage for a contig that can be placed into a bin.  The default is C<0>.
+
 =item force
 
 If C<all>, all of the data and intermediate files will be recomputed. If C<parms>, the initial bin files will be
@@ -254,6 +258,7 @@ my $opt = ScriptUtils::Opts('sampleDir workDir',
                 ['lenFilter=i',    'minimum contig length for seed protein search', { default => 400 }],
                 ['covgFilter=f',   'minimum contig mean coverage for seed protein search', { default => 4}],
                 ['binLenFilter=i', 'minimum contig length for binning', { default => 400 }],
+                ['binCovgFilter=f','minimum contig mean coverage for binning', { default => 0}],
                 ['force=s',        'force re-creation of all intermediate files'],
                 ['seedProtFasta=s', 'name of a FASTA file containing examples of the seed protein to use for seeding the bins',
                                     { default => "$FIG_Config::p3data/seedProt.fa" }],
@@ -271,8 +276,8 @@ my $opt = ScriptUtils::Opts('sampleDir workDir',
                 ['statistics-file=s', 'save statistics data to this file'],
                 ['scaffoldLen|XBad=i', 'number of X codons in a row to cause a contig to be rejected', { default => 50 }],
                 ['asparLen|Nbad=i', 'number of N codons in a row to cause a contig to be rejected', { default => 12 }],
-        ['nameSuffix=s',    'suffix to assign to the bin name', { default => 'clonal population' }],
-        ['dataAPIUrl=s', 'Override data api for this program'],
+                ['nameSuffix=s',    'suffix to assign to the bin name', { default => 'clonal population' }],
+                ['dataAPIUrl=s', 'Override data api for this program'],
         );
 # Enable access to PATRIC from Argonne.
 $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
@@ -377,6 +382,11 @@ if ($force || ! -s $reducedFastaFile || ! -s $binFile) {
             # Store the coverage vector in this contig.
             $bin->set_coverage(\@coverages);
             $stats->Add(coverageLineStored => 1);
+            if ($bin->coverage() < $opt->bincovgfilter) {
+                # Here the coverage is too low to be binned.
+                delete $contigs{$contigID};
+                $stats->Add(binContigLowCoverage => 1);
+            }
         }
     }
     # Close the vector input file.
@@ -579,7 +589,9 @@ for my $refGenome (@refGenomes) {
 for my $title (keys %binBest) {
     my $genome = $binBest{$title}[0];
     my $gto = $rg{$genome};
-    $binHash{$title}->set_name("$title $nameSuffix", $gto->{ncbi_taxonomy_id});
+    my $bin = $binHash{$title};
+    $bin->set_name("$title $nameSuffix", $gto->{ncbi_taxonomy_id});
+    $bin->set_rast_data($gto);
 }
 my $kmerDB;
 # The next step is to assign contigs to the bins.
@@ -749,17 +761,21 @@ if ($opt->unassembled) {
         while (defined $fields) {
             my ($contig, $comment, $sequence) = @$fields;
             $contigCount++;
-            my $binID = $kmerDB->ComputeBin($sequence);
-            if ($binID) {
-                # We found a bin, so place this contig.
-                $stats->Add(placedContigMobile => 1);
-                my $bin = $binHash{$binID};
-                $bin->Merge($contigs{$contig});
-                $placeCount++;
-            } else {
-                # No definite bin. Leave the contig unplaced.
-                $stats->Add(unplacedContigMobile => 1);
-                print $oh ">$contig $comment\n$sequence\n";
+            my $contigBin = $contigs{$contig};
+            # Only proceed if this contig passed the coverage filter.
+            if ($contigBin) {
+                my $binID = $kmerDB->ComputeBin($sequence);
+                if ($binID) {
+                    # We found a bin, so place this contig.
+                    $stats->Add(placedContigMobile => 1);
+                    my $bin = $binHash{$binID};
+                    $bin->Merge($contigs{$contig});
+                    $placeCount++;
+                } else {
+                    # No definite bin. Leave the contig unplaced.
+                    $stats->Add(unplacedContigMobile => 1);
+                    print $oh ">$contig $comment\n$sequence\n";
+                }
             }
             if ($contigCount % 1000 == 0) {
                 print "$contigCount contigs processed, $placeCount placed.\n";
@@ -777,20 +793,18 @@ if ($opt->unassembled) {
     }
     close $oh;
 }
-# All done.
-print "All done.\n" . $stats->Show();
-if ($opt->statistics_file)
-{
-    if (open(S, ">", $opt->statistics_file))
-    {
-        print S $stats->Show();
-        close(S);
-    }
-    else
-    {
-        warn "Cannot write statistics file " . $opt->statistics_file . ": $!";
+# Write the stats file.
+if ($opt->statistics_file) {
+    if (open(my $sh, ">", $opt->statistics_file)) {
+        print $sh $stats->Show();
+        close($sh);
+    } else {
+        print STDERR "Cannot write statistics file " . $opt->statistics_file . ": $!";
     }
 }
+# All done.
+print "All done.\n" . $stats->Show();
+exit(0);
 
 # Save the GTOs to disk and release them from memory.
 sub SaveGTOs {
