@@ -757,8 +757,11 @@ if ($opt->unassembled) {
             # We found a bin, so place this contig.
             $stats->Add(placedContigMobile => 1);
             my $bin = $binHash{$binID};
-            $bin->Merge($contigs{$contig});
-            $placeCount++;
+            my $contigBin = $contigs{$contig};
+            if ($contigBin) {
+                $bin->Merge($contigBin);
+                $placeCount++;
+            }
         } else {
             # No definite bin. Leave the contig unplaced.
             $stats->Add(unplacedContigMobile => 1);
