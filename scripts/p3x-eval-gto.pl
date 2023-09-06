@@ -111,6 +111,8 @@ my $geo = EvalHelper::ProcessGto($gto, 'ref' => $opt->ref, deep => $opt->deep, c
 				 parallel => $opt->parallel, workDir => $opt->workdir,
 				 p3 => $p3, outFile => $outFile, outHtml => $outHtml, template => $opt->template, external => $opt->external, binned => $opt->binned,
 				 improve => $opt->improve,
+				 ($opt->evaldir ? (roleFile => $opt->evaldir . "/roles.in.subsystems") : ()),
+				 ($opt->evaldir ? (rolesToUse => $opt->evaldir . "/roles.to.use") : ()),
 				 ($opt->genomebaseurl ? (outputGenomeBaseURL => $opt->genomebaseurl) : ()),
 				);
 # Write the results.
