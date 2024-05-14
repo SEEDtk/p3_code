@@ -24,8 +24,6 @@ package CVUtils;
     use Stats;
     use VBin;
     use FastA;
-    use VFile::Circular;
-    use VFile::GenBank;
     use CGI;
 
 =head1 CheckV Processing Utilities
@@ -167,34 +165,30 @@ sub CreateBins {
     my $logH = $self->{logH};
     # Separate the contigs into bins.
     my $binHash = $self->_computeBins();
-    # Get the identifying information for each virus found.
-    my $virHash = $self->_findViruses($binHash);
     # Build the bins.
     $self->_buildBins($binHash);
+    # We need to write the report now.  First, we add on the taxonomic information.
+    $self->_buildTaxMap($binHash);
     # Write the report.  Note that we only output bins with a bin number.
     print $logH "Writing final report.\n";
     open(my $wh, '>', "$self->{outDir}/vbins.html") || die "Could not open virus bin web page: $!";
     open(my $oh, '>', "$self->{outDir}/vbins.tsv") || die "Could not open virus bin report: $!";
-    my @cols = ("virus_id", "bin", "taxon_id", "name", "length", "completeness", "pct_error", "coverage");
-    my @formats = ("text", "num", "text", "text", "num", "num", "num", "num");
+    my @cols = ("virus_id", "bin", "taxon_id", "name", "length", "completeness", "pct_error", "coverage", "taxonomy");
+    my @formats = ("text", "num", "text", "text", "num", "num", "num", "num", "text");
     print $oh join("\t", @cols) . "\n";
     print $wh CGI::start_html(-title => "Virus Bin Summary");
     print $wh CGI::style("th, tr, td { border-style: inset; border-collapse: collapse; vertical-align: top; padding: 3px; }\nth { text-align: left; background: #EEEEEE; }\ntd.num, th.num { text-align: right; }");
     print $wh CGI::h1("Virus Bin Summary");
     print $wh CGI::p("This table lists all the known viruses found in the sample.");
     print $wh CGI::start_table();
-    print $wh CGI::Tr( map { CGI::th({ class => $formats[$_] }, $cols[$_]) } 0..7);
+    print $wh CGI::Tr( map { CGI::th({ class => $formats[$_] }, $cols[$_]) } 0..8);
     for my $virusID (sort { _vcmp($binHash, $a, $b) } keys %$binHash) {
         my $vBin = $binHash->{$virusID};
         if ($vBin->num > 0) {
-            my ($taxonID, $name) = @{$virHash->{$virusID}};
-            $name //= "Unknown virus $virusID";
-            if ($taxonID) {
-                @cols = ($virusID, $vBin->num, $taxonID, $name, $vBin->len, sprintf("%6.2f", $vBin->percent),
-                        sprintf("%6.2f", $vBin->err), sprintf("%6.2f", $vBin->covg));
-                print $oh join("\t", @cols) . "\n";
-                print $wh CGI::Tr( map { CGI::td({ class => $formats[$_] }, $cols[$_]) } 0..7);
-            }
+            @cols = ($virusID, $vBin->num, $vBin->taxId, $vBin->name, $vBin->len, sprintf("%6.2f", $vBin->percent),
+                    sprintf("%6.2f", $vBin->err), sprintf("%6.2f", $vBin->covg), $vBin->taxon);
+            print $oh join("\t", @cols) . "\n";
+            print $wh CGI::Tr( map { CGI::td({ class => $formats[$_] }, $cols[$_]) } 0..8);
         }
     }
     print $wh CGI::end_table();
@@ -204,6 +198,52 @@ sub CreateBins {
 
 
 =head2 Internal Methods
+
+=head3 _buildTaxMap
+
+    $checkV->_buildTaxMap($binHash);
+
+This method reads the C<checkv_taxon.tsv> file and adds a taxonomic string to each virus bin.
+
+The input file is in the C<genome_info> sub-directory of the checkV database directory, and contains a virus ID, a name,
+a taxonomy ID, and a lineage.
+
+Finally, we need the taxonomic ID for each virus
+
+=over 4
+
+=head binHash
+
+Reference to a hash mapping CheckV virus IDs to C<VBin> descriptors.
+
+=back
+
+=cut
+
+sub _buildTaxMap {
+    my ($self, $binHash) = @_;
+    my $logH = $self->{logH};
+    my $stats = $self->{stats};
+    # Try to open the taxon file.
+    my $ih;
+    if (! open($ih, '<', $self->{dbDir} . "/genome_db/checkv_taxon.tsv")) {
+        print $logH "Could not open taxonomic info file checkv_taxon.tsv in $self->{dbDir}.\n";
+    } else {
+        # Now we loop through the file.
+        my (undef, $cols) = P3Utils::find_headers($ih, checkv_taxon => 'checkv_id', 'taxon_id', 'name', 'taxonomy');
+        while (! eof $ih) {
+            $stats->Add(infoIn => 1);
+            my ($virusID, $taxId, $name, $taxonString) = P3Utils::get_cols($ih, $cols);
+            my $vBin = $binHash->{$virusID};
+            if ($vBin) {
+                $stats->Add(taxonsFound => 1);
+                $vBin->taxon($taxonString);
+                $vBin->name($name);
+                $vBin->taxId($taxId);
+            }
+        }
+    }
+}
 
 =head3 _vcmp
 
@@ -236,18 +276,16 @@ Returns a negative value if B<a> goes first, 0 if the bins are equal, and a posi
 sub _vcmp {
     my ($binHash, $a, $b) = @_;
     my ($aBin, $bBin) = map { $binHash->{$_} } ($a, $b);
-    my ($aType, $bType) = ($aBin->{type}, $bBin->{type});
+    my ($aTax, $bTax) = ($aBin->taxId, $bBin->taxId);
     my $retVal = 0;
-    if ($aType eq "genbank" && $bType ne "genbank") {
+    if ($aTax != 0 && $bTax == 0) {
         $retVal = -1;
-    } elsif ($aType ne "genbank" && $bType eq "genbank") {
+    } elsif ($aTax == 0 && $bTax != 0) {
         $retVal = 1;
     } else {
         $retVal = (abs(100 - $aBin->percent) <=> abs(100 - $bBin->percent));
     }
     return $retVal;
-
-
 }
 
 =head3 _computeBins
@@ -305,63 +343,6 @@ sub _computeBins {
         }
     }
     # Return the bin map.
-    return \%retVal;
-}
-
-=head3 _findViruses
-
-    my $virHash = $checkV->_findViruses(\%binHash);
-
-Create a hash mapping each virus ID to its name and taxonomic ID.
-
-=over 4
-
-=item binHash
-
-Hash of virus IDs to bin structures.
-
-=item RETURN
-
-Returns a reference to a hash mapping each virus ID to a [taxomomyID, name] pair.
-
-=back
-
-=cut
-
-sub _findViruses {
-    my ($self, $binHash) = @_;
-    my $stats = $self->{stats};
-    my $logH = $self->{logH};
-    # Get the handlers for the two types of viruses.
-    my $dbDir = $self->{dbDir};
-    my %vHash = (circular => VFile::Circular->new($dbDir),
-            genbank => VFile::GenBank->new($dbDir));
-    # Get a hash for the viruses we're trying to find.
-    my %idHash = map { $_ => 1 } keys %$binHash;
-    # This hash will accumulate the virus IDs of each type.
-    my %typeHash;
-    # Open the reference file and loop through it.
-    print $logH "Processing virus ID list.\n";
-    open(my $ih, '<', "$dbDir/genome_db/checkv_reps.tsv") || die "Could not open virus reps file: $!";
-    my $line = <$ih>;
-    while (! eof $ih) {
-        my ($virusID, $type) = P3Utils::get_fields($ih);
-        if ($idHash{$virusID}) {
-            push @{$typeHash{$type}}, $virusID;
-            $binHash->{$virusID}{type} = $type;
-            $stats->Add("$type-bin" => 1);
-        }
-    }
-    # Process each virus type.
-    my %retVal;
-    for my $type (keys %typeHash) {
-        print "Identifying $type viruses.\n";
-        if (! exists $vHash{$type}) {
-            print $logH "WARNING: Unknown virus type $type.\n";
-        } else {
-            $vHash{$type}->Process($typeHash{$type}, \%retVal);
-        }
-    }
     return \%retVal;
 }
 

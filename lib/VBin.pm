@@ -58,6 +58,10 @@ The total length of the virus in base pairs.
 
 The bin ID number.
 
+=item taxon
+
+The taxon string (optional).
+
 =back
 
 =head2 Special Methods
@@ -87,7 +91,10 @@ sub new {
         virus_id => $id,
         len => 0,
         contigs => [],
-        num => 0
+        num => 0,
+        taxon => "",
+        taxId => 0,
+        name => ""
     };
     bless $retVal, $class;
     return $retVal;
@@ -155,6 +162,68 @@ sub num {
     }
     return $self->{num};
 }
+
+=head3 taxon
+
+    my $taxonString = $vBin->taxon;
+
+or
+
+    $vBin->taxon($taxonString);
+
+Return or set the taxonomic string for this virus.
+
+=cut
+
+sub taxon {
+    my ($self, $taxonString) = @_;
+    if (defined $taxonString) {
+        $self->{taxon} = $taxonString;
+    }
+    return $self->{taxon};
+}
+
+=head taxId
+
+    my $taxId = $vBin->taxId;
+
+or
+
+    $vin->taxId($taxId);
+
+Return or set the taxonomic ID for this virus.
+
+=cut
+
+sub taxId {
+    my ($self, $taxId) = @_;
+    if (defined $taxId) {
+        $self->{taxId} = $taxId;
+    }
+    return $self->{taxId};
+}
+
+=head3 name
+
+    my $name = $vBin->name;
+
+or
+
+    $vBin->name($name);
+
+Return or set the genome name.
+
+=cut
+
+sub name {
+    my ($self, $name) = @_;
+    if (defined $name) {
+        $self->{name} = $name;
+    }
+    return $self->{name};
+}
+
+
 
 =head2 Query Methods
 

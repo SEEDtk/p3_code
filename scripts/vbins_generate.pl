@@ -43,6 +43,11 @@ The minimum percentage of a virus that must be present in order to be binned.  T
 
 The number of compute threads to used, passed down to checkv. The default is C<1>.
 
+=item test
+
+If specified, the actual execution of C<checkv> will be skipped.  This is used to test the script, and it
+is presumed the output is already in place.
+
 =back
 
 =cut
@@ -57,9 +62,10 @@ use CVUtils;
 $| = 1;
 # Get the command-line options.
 my $opt = P3Utils::script_opts('checkvDB binDir',
-			       ['maxError|M=f', 'maximum permissible confidence error', { default => '10.0' }],
-			       ['minPct|p=f', 'minimum permissible percent of virus present', { default => '10.0' }],
-			       ['threads|t=i', 'number of threads for checkv', { default => 1 }],
+                   ['maxError|M=f', 'maximum permissible confidence error', { default => '10.0' }],
+                   ['minPct|p=f', 'minimum permissible percent of virus present', { default => '10.0' }],
+                   ['threads|t=i', 'number of threads for checkv', { default => 1 }],
+                   ['test', 'if specified, will not run checkv']
     );
 my $stats = Stats->new();
 my $maxError = $opt->maxerror;
@@ -86,8 +92,13 @@ if (! $binDir) {
 # Invoke checkv to identify viral contigs.
 my @parms = ('checkv', 'completeness', "-t", $opt->threads, "$binDir/unbinned.fasta", "$binDir/checkv", '-d', $checkVDb);
 my $cmd = join(" ", @parms);
-print "Running: $cmd\n";
-my $rc = system($cmd);
+my $rc;
+if ($opt->test) {
+    print "Skipping: $cmd\n";
+} else {
+    print "Running: $cmd\n";
+    $rc = system($cmd);
+}
 if ($rc) {
     die "Error in CheckV (rc = $rc).\n";
 }
